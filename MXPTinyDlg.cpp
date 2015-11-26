@@ -87,11 +87,9 @@ CMXPTinyDlg::CMXPTinyDlg(CWnd* pParent /*=NULL*/)
 		m_bitrate=20000;
 
 	GetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), _T("autorec"), (BYTE *)&m_autorec, sizeof(m_autorec));
-	m_button_autorec.SetCheck(m_autorec);
-
+	
 	GetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), _T("autopreview"), (BYTE *)&m_autopreview, sizeof(m_autopreview));
-	m_button_autopreview.SetCheck(m_autopreview);
-
+	
 	if(!GetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), _T("folder"), (BYTE *)m_filename.GetBuffer(MAX_PATH), MAX_PATH))
 	{
 		m_filename.ReleaseBuffer();
@@ -166,6 +164,10 @@ BOOL CMXPTinyDlg::OnInitDialog()
 	//  when the application's main window is not a dialog
 	SetIcon(m_hIcon, TRUE);			// Set big icon
 	SetIcon(m_hIcon, FALSE);		// Set small icon
+
+	// SEt the auto record and auto preview checkboxes
+	m_button_autorec.SetCheck(m_autorec);
+	m_button_autopreview.SetCheck(m_autopreview);
 
 	m_bitrate_slider.SetRange(1000,28000);
 	m_bitrate_slider.SetPos(m_bitrate);

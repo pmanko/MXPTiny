@@ -90,6 +90,9 @@ CMXPTinyDlg::CMXPTinyDlg(CWnd* pParent /*=NULL*/)
 	
 	GetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), _T("autopreview"), (BYTE *)&m_autopreview, sizeof(m_autopreview));
 	
+	if (!GetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), _T("presetIndex"), (BYTE *)&m_presetIndex, sizeof(m_presetIndex)))
+		m_presetIndex = 0;
+
 	if(!GetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), _T("folder"), (BYTE *)m_filename.GetBuffer(MAX_PATH), MAX_PATH))
 	{
 		m_filename.ReleaseBuffer();
@@ -165,7 +168,7 @@ BOOL CMXPTinyDlg::OnInitDialog()
 	SetIcon(m_hIcon, TRUE);			// Set big icon
 	SetIcon(m_hIcon, FALSE);		// Set small icon
 
-	// SEt the auto record and auto preview checkboxes
+	// Set the auto record and auto preview checkboxes
 	m_button_autorec.SetCheck(m_autorec);
 	m_button_autopreview.SetCheck(m_autopreview);
 
@@ -339,7 +342,8 @@ CString frameRate2String(unsigned int rate)
 void CMXPTinyDlg::OnCbnSelchangeComboEncodingPreset()
 {
 	CString str;
-	IBMDStreamingVideoEncodingMode* em = (IBMDStreamingVideoEncodingMode*)m_videoEncodingCombo.GetItemDataPtr(m_videoEncodingCombo.GetCurSel());
+	auto idx = m_videoEncodingCombo.GetCurSel();
+	IBMDStreamingVideoEncodingMode* em = (IBMDStreamingVideoEncodingMode*)m_videoEncodingCombo.GetItemDataPtr(idx);
 
 	LONGLONG rate=0;
 	em->GetInt(bmdStreamingEncodingPropertyVideoFrameRate, &rate);
@@ -347,6 +351,9 @@ void CMXPTinyDlg::OnCbnSelchangeComboEncodingPreset()
 	str.Format(_T("Input: Source: X:%d,Y:%d->%dx%d Dest: %dx%d Format: %s"), em->GetSourcePositionX(), em->GetSourcePositionY(), em->GetSourceWidth(), em->GetSourceHeight(), em->GetDestWidth(), em->GetDestHeight(), fmt);
 
 	m_encoding_static.SetWindowText(str);
+	
+	m_presetIndex = idx;
+	SetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), REG_DWORD, _T("presetIndex"), (BYTE *)&m_presetIndex, sizeof(m_presetIndex));
 }
 
 void CMXPTinyDlg::StopPreview()
@@ -502,7 +509,7 @@ void CMXPTinyDlg::UpdateEncodingPresetsUIForInputMode()
 		presetIterator->Release();
 	}
 
-	m_videoEncodingCombo.SetCurSel(0);
+	m_videoEncodingCombo.SetCurSel(max(min(m_presetIndex, m_videoEncodingCombo.GetCount() - 1), 0));
 }
 
 void CMXPTinyDlg::EncodingPresetsRemoveItems()

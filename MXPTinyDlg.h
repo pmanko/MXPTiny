@@ -48,6 +48,7 @@ protected:
 	CComboBox						m_videoInputDeviceCombo;
 	BOOL						    m_autorec;
 	BOOL							m_autopreview;
+	DWORD							m_presetIndex;
 	CSliderCtrl m_bitrate_slider;
 	CStatic m_bitrate_static;
 	CString m_default_exe;

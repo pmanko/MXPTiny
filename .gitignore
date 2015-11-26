@@ -11,3 +11,10 @@
 *.lai
 *.la
 *.a
+/Debug/
+/.vs/
+/DeckLinkAPI_h.h
+/DeckLinkAPI_i.c
+*.sdf
+*.opensdf
+/ipch/

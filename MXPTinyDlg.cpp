@@ -80,6 +80,7 @@ CMXPTinyDlg::CMXPTinyDlg(CWnd* pParent /*=NULL*/)
 	m_deviceMode = bmdStreamingDeviceUnknown;
 	m_autorec = false;
 	m_autopreview = false;
+	m_timestampSuffix = false;
 
 	TCHAR pf[MAX_PATH];
 
@@ -90,6 +91,8 @@ CMXPTinyDlg::CMXPTinyDlg(CWnd* pParent /*=NULL*/)
 	
 	GetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), _T("autopreview"), (BYTE *)&m_autopreview, sizeof(m_autopreview));
 	
+	GetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), _T("timestampSuffix"), (BYTE *)&m_timestampSuffix, sizeof(m_timestampSuffix));
+
 	if (!GetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), _T("presetIndex"), (BYTE *)&m_presetIndex, sizeof(m_presetIndex)))
 		m_presetIndex = 0;
 
@@ -112,7 +115,7 @@ CMXPTinyDlg::CMXPTinyDlg(CWnd* pParent /*=NULL*/)
 	SHGetSpecialFolderPath( 0, pf, CSIDL_PROGRAM_FILESX86, FALSE ); 
 	m_default_exe.Format(_T("%s\\VideoLAN\\VLC\\vlc.exe --fullscreen stream://\\\\\\.\\pipe\\DeckLink.ts"), pf);
 
-	SetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), REG_DWORD, _T("bitrate"), (BYTE *)&m_bitrate, sizeof(m_bitrate));
+	SetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\tings"), REG_DWORD, _T("bitrate"), (BYTE *)&m_bitrate, sizeof(m_bitrate));
 	SetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), REG_SZ, _T("folder"), (BYTE *)m_filename.GetBuffer(MAX_PATH), m_filename.GetLength()*2);
 	m_filename.ReleaseBuffer();
 	SetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), REG_SZ, _T("previewcmd"), (BYTE *)m_vlcexe.GetBuffer(MAX_PATH), m_vlcexe.GetLength()*2);
@@ -137,6 +140,8 @@ void CMXPTinyDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_AUTOREC, m_button_autorec);
 	DDX_Check(pDX, IDC_AUTOPREVIEW, m_autopreview);
 	DDX_Control(pDX, IDC_AUTOPREVIEW, m_button_autopreview);
+	DDX_Check(pDX, IDC_TIMESTAMP_SUFFIX, m_timestampSuffix);
+	DDX_Control(pDX, IDC_TIMESTAMP_SUFFIX, m_button_timestampSuffix);
 }
 
 BEGIN_MESSAGE_MAP(CMXPTinyDlg, CDialog)
@@ -154,6 +159,7 @@ BEGIN_MESSAGE_MAP(CMXPTinyDlg, CDialog)
 	ON_BN_CLICKED(IDC_BUTTON_CUSTOMIZE, &CMXPTinyDlg::OnBnClickedButtonCustomize)
 	ON_BN_CLICKED(IDC_AUTOREC, &CMXPTinyDlg::OnBnClickedAutorec)
 	ON_BN_CLICKED(IDC_AUTOPREVIEW, &CMXPTinyDlg::OnBnClickedAutopreview)
+	ON_BN_CLICKED(IDC_TIMESTAMP_SUFFIX, &CMXPTinyDlg::OnBnClickedTimestampSuffix)
 END_MESSAGE_MAP()
 
 
@@ -171,6 +177,7 @@ BOOL CMXPTinyDlg::OnInitDialog()
 	// Set the auto record and auto preview checkboxes
 	m_button_autorec.SetCheck(m_autorec);
 	m_button_autopreview.SetCheck(m_autopreview);
+	m_button_timestampSuffix.SetCheck(m_timestampSuffix);
 
 	m_bitrate_slider.SetRange(1000,28000);
 	m_bitrate_slider.SetPos(m_bitrate);
@@ -342,7 +349,7 @@ CString frameRate2String(unsigned int rate)
 void CMXPTinyDlg::OnCbnSelchangeComboEncodingPreset()
 {
 	CString str;
-	auto idx = m_videoEncodingCombo.GetCurSel();
+	auto idx(m_videoEncodingCombo.GetCurSel());
 	IBMDStreamingVideoEncodingMode* em = (IBMDStreamingVideoEncodingMode*)m_videoEncodingCombo.GetItemDataPtr(idx);
 
 	LONGLONG rate=0;
@@ -802,7 +809,15 @@ void CMXPTinyDlg::OnBnClickedButtonRecord()
 		m_recording=false;
 	} else {
 		if(!m_filename.IsEmpty()) {
-			m_fh=CreateFile(m_filename,  FILE_APPEND_DATA, FILE_SHARE_READ, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
+			if (m_timestampSuffix) {
+				auto rootName = m_filename.Left(m_filename.GetLength() - 3);
+				auto fileName = rootName + CTime::GetCurrentTime().Format("_%Y%m%d_%H%M%S") + _T(".ts");
+				m_fh = CreateFile(fileName, FILE_APPEND_DATA, FILE_SHARE_READ, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
+			}
+			else
+			{
+				m_fh = CreateFile(m_filename, FILE_APPEND_DATA, FILE_SHARE_READ, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
+			}
 			if(m_fh != INVALID_HANDLE_VALUE) {
 				m_record_button.SetWindowTextW(_T("Recording..."));
 				m_recording=true;
@@ -929,4 +944,10 @@ void CMXPTinyDlg::OnBnClickedAutopreview()
 {
 	UpdateData(TRUE);
 	SetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), REG_DWORD, _T("autopreview"), (BYTE *)&m_autopreview, sizeof(m_autopreview));
+}
+
+void CMXPTinyDlg::OnBnClickedTimestampSuffix()
+{
+	UpdateData(TRUE);
+	SetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), REG_DWORD, _T("timestampSuffix"), (BYTE *)&m_timestampSuffix, sizeof(m_timestampSuffix));
 }

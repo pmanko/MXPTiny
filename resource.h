@@ -22,6 +22,7 @@
 #define IDC_AUTOPREVIEW                 1009
 #define IDC_STATIC_ENCODING_MODE        1010
 #define IDC_COMBO_ENCODING_MODE         1011
+#define IDC_TIMESTAMP_SUFFIX            1011
 #define IDC_BUTTON_START_PREVIEW        1012
 #define IDC_EDIT1                       1012
 #define IDC_STATIC_BITRATE              1013

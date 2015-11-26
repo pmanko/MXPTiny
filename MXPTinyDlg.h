@@ -48,6 +48,7 @@ protected:
 	CComboBox						m_videoInputDeviceCombo;
 	BOOL						    m_autorec;
 	BOOL							m_autopreview;
+	BOOL							m_timestampSuffix;
 	DWORD							m_presetIndex;
 	CSliderCtrl m_bitrate_slider;
 	CStatic m_bitrate_static;
@@ -138,6 +139,8 @@ public:
 	CButton m_button_customize;
 	CButton m_button_autorec;
 	CButton m_button_autopreview;
+	CButton m_button_timestampSuffix;
 	afx_msg void OnBnClickedAutorec();
 	afx_msg void OnBnClickedAutopreview();
+	afx_msg void OnBnClickedTimestampSuffix();
 };

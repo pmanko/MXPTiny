@@ -21,6 +21,12 @@
 #include "MXPTinyDlg.h"
 #include "exeSetup.h"
 #include "EncodingPresetSetup.h"
+#include <chrono>
+#include <thread>
+#include <wbemidl.h>
+#pragma comment(lib, "wbemuuid.lib")
+#include <comutil.h>
+#pragma comment(lib, "comsupp.lib")
 
 #include "DeckLinkAPI_h.h"
 
@@ -28,6 +34,7 @@
 #define new DEBUG_NEW
 #endif
 
+static UINT SYNC_STATUS = ::RegisterWindowMessageA("SYNC_STATUS");
 
 // CMXPTinyDlg dialog
 
@@ -81,6 +88,7 @@ CMXPTinyDlg::CMXPTinyDlg(CWnd* pParent /*=NULL*/)
 	m_autorec = false;
 	m_autopreview = false;
 	m_timestampSuffix = false;
+	m_syncToHost = false;
 
 	TCHAR pf[MAX_PATH];
 
@@ -92,9 +100,14 @@ CMXPTinyDlg::CMXPTinyDlg(CWnd* pParent /*=NULL*/)
 	GetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), _T("autopreview"), (BYTE *)&m_autopreview, sizeof(m_autopreview));
 	
 	GetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), _T("timestampSuffix"), (BYTE *)&m_timestampSuffix, sizeof(m_timestampSuffix));
+	
+	GetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), _T("syncToHost"), (BYTE *)&m_syncToHost, sizeof(m_syncToHost));
 
 	if (!GetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), _T("presetIndex"), (BYTE *)&m_presetIndex, sizeof(m_presetIndex)))
 		m_presetIndex = 0;
+	
+	GetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), _T("syncHost"), (BYTE *)m_syncHost.GetBuffer(MAX_PATH), MAX_PATH);
+	m_syncHost.ReleaseBuffer();
 
 	if(!GetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), _T("folder"), (BYTE *)m_filename.GetBuffer(MAX_PATH), MAX_PATH))
 	{
@@ -142,6 +155,10 @@ void CMXPTinyDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_AUTOPREVIEW, m_button_autopreview);
 	DDX_Check(pDX, IDC_TIMESTAMP_SUFFIX, m_timestampSuffix);
 	DDX_Control(pDX, IDC_TIMESTAMP_SUFFIX, m_button_timestampSuffix);
+	DDX_Check(pDX, IDC_SYNC_TO_HOST, m_syncToHost);
+	DDX_Control(pDX, IDC_SYNC_TO_HOST, m_button_syncToHost);
+	DDX_Text(pDX, IDC_SYNC_HOST, m_syncHost);
+	DDX_Control(pDX, IDC_SYNC_HOST, m_text_syncHost);
 }
 
 BEGIN_MESSAGE_MAP(CMXPTinyDlg, CDialog)
@@ -160,8 +177,15 @@ BEGIN_MESSAGE_MAP(CMXPTinyDlg, CDialog)
 	ON_BN_CLICKED(IDC_AUTOREC, &CMXPTinyDlg::OnBnClickedAutorec)
 	ON_BN_CLICKED(IDC_AUTOPREVIEW, &CMXPTinyDlg::OnBnClickedAutopreview)
 	ON_BN_CLICKED(IDC_TIMESTAMP_SUFFIX, &CMXPTinyDlg::OnBnClickedTimestampSuffix)
+	ON_BN_CLICKED(IDC_SYNC_TO_HOST, &CMXPTinyDlg::OnBnClickedSyncToHost)
+	ON_EN_CHANGE(IDC_SYNC_HOST, &CMXPTinyDlg::OnEnChangeSyncHost)
+	ON_REGISTERED_MESSAGE(SYNC_STATUS, &CMXPTinyDlg::OnSyncStatus)
 END_MESSAGE_MAP()
 
+UINT MonitorHostThreadProc(LPVOID pParam)
+{
+	return ((CMXPTinyDlg*)pParam)->MonitorHost();
+}
 
 // CMXPTinyDlg message handlers
 
@@ -178,6 +202,11 @@ BOOL CMXPTinyDlg::OnInitDialog()
 	m_button_autorec.SetCheck(m_autorec);
 	m_button_autopreview.SetCheck(m_autopreview);
 	m_button_timestampSuffix.SetCheck(m_timestampSuffix);
+	m_button_syncToHost.SetCheck(m_syncToHost);
+	
+	// Set the host text.
+	m_text_syncHost.SetWindowTextW(m_syncHost.GetBuffer());
+	m_syncHost.ReleaseBuffer();
 
 	m_bitrate_slider.SetRange(1000,28000);
 	m_bitrate_slider.SetPos(m_bitrate);
@@ -203,6 +232,9 @@ BOOL CMXPTinyDlg::OnInitDialog()
 		MessageBox(_T("Failed to install device notifications for the Blackmagic Streaming devices"), _T("Error"));
 		goto bail;
 	}
+
+	// Create background thread to service the automatic recording while a host is alive option
+	AfxBeginThread(MonitorHostThreadProc, this);
 
 	// return TRUE unless you set the focus to a control
 	return TRUE;
@@ -950,4 +982,166 @@ void CMXPTinyDlg::OnBnClickedTimestampSuffix()
 {
 	UpdateData(TRUE);
 	SetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), REG_DWORD, _T("timestampSuffix"), (BYTE *)&m_timestampSuffix, sizeof(m_timestampSuffix));
+}
+
+void CMXPTinyDlg::OnBnClickedSyncToHost()
+{
+	UpdateData(TRUE);
+	SetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), REG_DWORD, _T("syncToHost"), (BYTE *)&m_syncToHost, sizeof(m_syncToHost));
+}
+
+void CMXPTinyDlg::OnEnChangeSyncHost()
+{
+	UpdateData(TRUE);
+
+	SetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), REG_SZ, _T("syncHost"), (BYTE *)m_syncHost.GetBuffer(MAX_PATH), m_syncHost.GetLength() * 2);
+	m_syncHost.ReleaseBuffer();
+}
+
+LRESULT CMXPTinyDlg::OnSyncStatus(WPARAM wParam, LPARAM lParam)
+{
+	// Preview/Sotp button must be enabled for this to be available.
+	if (m_startButton.IsWindowEnabled())
+	{
+		if ((BOOL)wParam)
+		{
+			// Start previewing/recording.
+			if (!m_playing)
+			{
+				// Not previewing.
+				// Simulate a Preview button click.
+				OnBnClickedOk();
+			}
+			else if (!m_recording)
+			{
+				// Previewing, but not recording.
+				// Simulate a Record button click.
+				OnBnClickedButtonRecord();
+			}
+		}
+		else
+		{
+			// Stop previewing & recording.
+			if (m_playing || m_recording)
+			{
+				OnBnClickedOk();
+			}
+		}
+	}
+
+	return 0;
+}
+
+UINT CMXPTinyDlg::MonitorHost()
+{
+	// NOTE: The ping code is largely from http://www.codeproject.com/Articles/10539/Making-WMI-Queries-In-C
+	HRESULT hr = CoInitializeEx(NULL, COINIT_MULTITHREADED);
+	if (FAILED(hr))
+	{
+		OutputDebugString(L"COM initialization failed");
+		return -1;
+	}
+
+	// setup process-wide security context
+	hr = CoInitializeSecurity(NULL, // we're not a server
+		-1, // we're not a server
+		NULL, // ditto
+		NULL, // reserved
+		RPC_C_AUTHN_LEVEL_DEFAULT, // let DCOM decide
+		RPC_C_IMP_LEVEL_IMPERSONATE,
+		NULL,
+		EOAC_NONE,
+		NULL);
+	if (FAILED(hr))
+	{
+		OutputDebugString(L"Security initialization failed");
+		return -1;
+	}
+
+	// we're going to use CComPtr<>s, whose lifetime must end BEFORE CoUnitialize is called
+	{
+		// connect to WMI
+		CComPtr< IWbemLocator > locator;
+		hr = CoCreateInstance(CLSID_WbemAdministrativeLocator, NULL,
+			CLSCTX_INPROC_SERVER,
+			IID_IWbemLocator, reinterpret_cast< void** >(&locator));
+		if (FAILED(hr))
+		{
+			OutputDebugString(L"Instantiation of IWbemLocator failed");
+			return -1;
+		}
+
+		// connect to local service with current credentials
+		CComPtr< IWbemServices > service;
+		hr = locator->ConnectServer(L"root\\cimv2", NULL, NULL, NULL,
+			WBEM_FLAG_CONNECT_USE_MAX_WAIT,
+			NULL, NULL, &service);
+		if (SUCCEEDED(hr))
+		{
+			while (TRUE)
+			{
+				// Sleep for a second to avoid wasting CPU or flooding a live host.
+				std::this_thread::sleep_for(std::chrono::seconds(1));
+
+				// Keep sleeping if the user doesn't want to sync to a host.
+				if (!m_syncToHost || m_syncHost.IsEmpty()) continue;
+
+				// Execute the ping.
+				BOOL hostUp = false;
+				CComPtr< IEnumWbemClassObject > enumerator;
+				CString query = _T("SELECT * FROM Win32_PingStatus WHERE Address=\"") + m_syncHost + _T("\" AND timeout=500");
+				hr = service->ExecQuery(L"WQL", query.GetBuffer(), WBEM_FLAG_FORWARD_ONLY, NULL, &enumerator);
+				query.ReleaseBuffer();
+				if (SUCCEEDED(hr))
+				{
+					CComPtr< IWbemClassObject > ping = NULL;
+					ULONG retcnt;
+					hr = enumerator->Next(WBEM_INFINITE, 1L, &ping, &retcnt);
+					if (SUCCEEDED(hr))
+					{
+						if (retcnt > 0)
+						{
+							// query returns a result
+							_variant_t var_val;
+							hr = ping->Get(L"StatusCode", 0, &var_val, NULL, NULL);
+							if (SUCCEEDED(hr) && var_val.vt != 1 /* vt == 1 when the host doesn't exist*/)
+							{
+								if (var_val.intVal == 0)
+								{
+									// Ping succeeded. Host is up.
+									hostUp = TRUE;
+								}
+							}
+							else
+							{
+								OutputDebugString(L"IWbemClassObject::Get failed");
+							}
+						}
+						else
+						{
+							OutputDebugString(L"Ping: Enumeration empty.");
+						}
+					}
+					else
+					{
+						OutputDebugString(L"Error in iterating through enumeration");
+					}
+				}
+				else
+				{
+					OutputDebugString(L"Query failed");
+				}
+
+				// Allow the main thread to finish processing the host state.
+				PostMessage(SYNC_STATUS, hostUp);
+			}
+		}
+		else
+		{
+			OutputDebugString(L"Couldn't connect to service");
+		}
+	}
+	CoUninitialize();
+
+	return 0;
 }

@@ -35,6 +35,7 @@
 #define IDC_SRCW                        1016
 #define IDC_BUTTON_CUSTOMIZE            1016
 #define IDC_SRCH                        1017
+#define IDC_SYNC_TO_HOST                1017
 #define IDC_DSTW                        1018
 #define IDC_DSTH                        1019
 #define IDC_COMBO_LEVEL                 1020
@@ -45,6 +46,7 @@
 #define IDC_CHECK1                      1025
 #define IDC_AUTOREC                     1025
 #define IDC_AUTOREC2                    1026
+#define IDC_SYNC_HOST                   1026
 
 // Next default values for new objects
 // 
@@ -52,7 +54,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        133
 #define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         1026
+#define _APS_NEXT_CONTROL_VALUE         1027
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

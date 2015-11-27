@@ -49,6 +49,8 @@ protected:
 	BOOL						    m_autorec;
 	BOOL							m_autopreview;
 	BOOL							m_timestampSuffix;
+	BOOL							m_syncToHost;
+	CString							m_syncHost;
 	DWORD							m_presetIndex;
 	CSliderCtrl m_bitrate_slider;
 	CStatic m_bitrate_static;
@@ -140,7 +142,14 @@ public:
 	CButton m_button_autorec;
 	CButton m_button_autopreview;
 	CButton m_button_timestampSuffix;
+	CButton m_button_syncToHost;
+	CEdit m_text_syncHost;
 	afx_msg void OnBnClickedAutorec();
 	afx_msg void OnBnClickedAutopreview();
 	afx_msg void OnBnClickedTimestampSuffix();
+	afx_msg void OnBnClickedSyncToHost();
+	afx_msg void OnEnChangeSyncHost();
+	afx_msg LRESULT OnSyncStatus(WPARAM wParam, LPARAM lParam);
+
+	UINT MonitorHost();
 };

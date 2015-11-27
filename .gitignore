@@ -19,3 +19,4 @@
 *.opensdf
 /ipch/
 *.aps
+/Release/

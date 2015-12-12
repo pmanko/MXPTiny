@@ -89,6 +89,7 @@ CMXPTinyDlg::CMXPTinyDlg(CWnd* pParent /*=NULL*/)
 	m_autopreview = false;
 	m_timestampSuffix = false;
 	m_syncToHost = false;
+	m_failCount = 0;
 
 	TCHAR pf[MAX_PATH];
 
@@ -1005,6 +1006,9 @@ LRESULT CMXPTinyDlg::OnSyncStatus(WPARAM wParam, LPARAM lParam)
 	{
 		if ((BOOL)wParam)
 		{
+			// Reset the failure count.
+			m_failCount = 0;
+
 			// Start previewing/recording.
 			if (!m_playing)
 			{
@@ -1024,7 +1028,11 @@ LRESULT CMXPTinyDlg::OnSyncStatus(WPARAM wParam, LPARAM lParam)
 			// Stop previewing & recording.
 			if (m_playing || m_recording)
 			{
-				OnBnClickedOk();
+				// But only if we've failed 3 times in a row.
+				if (++m_failCount >= 3)
+				{
+					OnBnClickedOk();
+				}
 			}
 		}
 	}

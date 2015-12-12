@@ -72,6 +72,7 @@ protected:
 	LARGE_INTEGER m_tscount;
 	LARGE_INTEGER m_last_tscount;
 	DWORD m_bitrate;
+	int m_failCount;
 
 	// Streaming API:
 	IBMDStreamingDiscovery*			m_streamingDiscovery;

@@ -20,3 +20,5 @@
 /ipch/
 *.aps
 /Release/
+
+*.suo

@@ -118,16 +118,16 @@ CMXPTinyDlg::CMXPTinyDlg(CWnd* pParent /*=NULL*/)
 	} else {
 		m_filename.ReleaseBuffer();
 	}
-	if(!GetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), _T("previewcmd"), (BYTE *)m_vlcexe.GetBuffer(MAX_PATH), MAX_PATH))
+	if(true) // !GetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), _T("previewcmd"), (BYTE *)m_vlcexe.GetBuffer(MAX_PATH), MAX_PATH))
 	{
 		m_vlcexe.ReleaseBuffer();
 		SHGetSpecialFolderPath( 0, pf, CSIDL_PROGRAM_FILESX86, FALSE ); 
-		m_vlcexe.Format(_T("%s\\VideoLAN\\VLC\\vlc.exe stream://\\\\\\.\\pipe\\DeckLink.ts"), pf);
+		m_vlcexe.Format(_T("%s\\VideoLAN\\VLC\\vlc.exe --no-fullscreen --sout-transcode-maxwidth=1200 stream://\\\\\\.\\pipe\\DeckLink.ts"), pf);
 	} else 
 		m_vlcexe.ReleaseBuffer();
 
 	SHGetSpecialFolderPath( 0, pf, CSIDL_PROGRAM_FILESX86, FALSE ); 
-	m_default_exe.Format(_T("%s\\VideoLAN\\VLC\\vlc.exe stream://\\\\\\.\\pipe\\DeckLink.ts"), pf);
+	m_default_exe.Format(_T("%s\\VideoLAN\\VLC\\vlc.exe --no-fullscreen --sout-transcode-maxwidth=1200 stream://\\\\\\.\\pipe\\DeckLink.ts"), pf);
 
 	SetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\tings"), REG_DWORD, _T("bitrate"), (BYTE *)&m_bitrate, sizeof(m_bitrate));
 	SetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), REG_SZ, _T("folder"), (BYTE *)m_filename.GetBuffer(MAX_PATH), m_filename.GetLength()*2);

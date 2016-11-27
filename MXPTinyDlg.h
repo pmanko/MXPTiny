@@ -52,6 +52,7 @@ protected:
 	BOOL							m_syncToHost;
 	CString							m_syncHost;
 	DWORD							m_presetIndex;
+	int								anglePort;
 	CSliderCtrl m_bitrate_slider;
 	CStatic m_bitrate_static;
 	CString m_default_exe;

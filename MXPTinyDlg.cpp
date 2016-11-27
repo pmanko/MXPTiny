@@ -93,6 +93,9 @@ CMXPTinyDlg::CMXPTinyDlg(CWnd* pParent /*=NULL*/)
 
 	TCHAR pf[MAX_PATH];
 
+	// Set angle port number
+	anglePort = _tstoi(theApp.m_lpCmdLine);
+
 	if(!GetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), _T("bitrate"), (BYTE *)&m_bitrate, sizeof(m_bitrate))) 
 		m_bitrate=20000;
 
@@ -110,8 +113,9 @@ CMXPTinyDlg::CMXPTinyDlg(CWnd* pParent /*=NULL*/)
 	GetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), _T("syncHost"), (BYTE *)m_syncHost.GetBuffer(MAX_PATH), MAX_PATH);
 	m_syncHost.ReleaseBuffer();
 
-	if(!GetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), _T("folder"), (BYTE *)m_filename.GetBuffer(MAX_PATH), MAX_PATH))
+	if(true) //!GetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), _T("folder"), (BYTE *)m_filename.GetBuffer(MAX_PATH), MAX_PATH))
 	{
+		// This is where the default filename is set. 
 		m_filename.ReleaseBuffer();
 		SHGetSpecialFolderPath( 0, pf, CSIDL_MYDOCUMENTS, TRUE ); 
 		m_filename.Format(_T("%s\\DeckLink.ts"), pf);	
@@ -398,7 +402,11 @@ void CMXPTinyDlg::OnCbnSelchangeComboEncodingPreset()
 
 void CMXPTinyDlg::StopPreview()
 {
-	m_encoding_static.SetWindowText(_T(""));
+	CString str;
+	
+	str.Format(_T("Port number: %d"), anglePort);
+
+	m_encoding_static.SetWindowText(str);
 	m_playing = false;
 	m_recording = false;
 
@@ -841,23 +849,27 @@ void CMXPTinyDlg::OnBnClickedButtonRecord()
 		m_record_button.SetWindowTextW(_T("Record"));
 		m_recording=false;
 	} else {
+		// Should never happen
 		if(!m_filename.IsEmpty()) {
-			if (m_timestampSuffix) {
+			/*if (m_timestampSuffix) {
 				auto rootName = m_filename.Left(m_filename.GetLength() - 3);
 				auto fileName = rootName + CTime::GetCurrentTime().Format("_%Y%m%d_%H%M%S") + _T(".ts");
 				m_fh = CreateFile(fileName, FILE_APPEND_DATA, FILE_SHARE_READ, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
 			}
 			else
-			{
-				m_fh = CreateFile(m_filename, FILE_APPEND_DATA, FILE_SHARE_READ, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
-			}
+			{*/
+				
+			//}
+
+			m_fh = CreateFile(m_filename, FILE_APPEND_DATA, FILE_SHARE_READ, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
+
 			if(m_fh != INVALID_HANDLE_VALUE) {
 				m_record_button.SetWindowTextW(_T("Recording..."));
 				m_recording=true;
 			}
 		}
 	}
-	m_folder_button.EnableWindow(!m_recording);
+	// m_folder_button.EnableWindow(!m_recording);
 }
 
 
@@ -866,27 +878,37 @@ void CMXPTinyDlg::OnCbnSelchangeComboInputDevice()
 	activate_device(m_videoInputDeviceCombo.GetCurSel());
 }
 
-
+/* TODO: Re-use for when pipe sends file name */
 void CMXPTinyDlg::OnBnClickedButtonFolder()
 {
-	#define MAX_CFileDialog_FILE_COUNT 99
-	#define FILE_LIST_BUFFER_SIZE ((MAX_CFileDialog_FILE_COUNT * (MAX_PATH + 1)) + 1)
-	static TCHAR BASED_CODE szFilter[] = _T("Transport stream Files (*.ts)|*.ts|");
+	// #define MAX_CFileDialog_FILE_COUNT 99
+	// #define FILE_LIST_BUFFER_SIZE ((MAX_CFileDialog_FILE_COUNT * (MAX_PATH + 1)) + 1)
+	// static TCHAR BASED_CODE szFilter[] = _T("Transport stream Files (*.ts)|*.ts|");
 
-	wchar_t* p = m_filename.GetBuffer( FILE_LIST_BUFFER_SIZE );
-	CFileDialog dlgFile(TRUE, _T("ts"), _T("DeckLink"), OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, szFilter, this);
-	OPENFILENAME& ofn = dlgFile.GetOFN( );
-	ofn.lpstrFile = p;
-	ofn.nMaxFile = FILE_LIST_BUFFER_SIZE;
-	INT_PTR ret=dlgFile.DoModal();
-	if( ret == 1) {		
-		SetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), REG_SZ, _T("folder"), (BYTE *)m_filename.GetBuffer(MAX_PATH), m_filename.GetLength()*2);
-		m_filename.ReleaseBuffer();
-		CString str;
-		str.Format(_T("Selected file: % 26s"), m_filename);
-		m_encoding_static.SetWindowText(str);
-	}
+	// wchar_t* p = m_filename.GetBuffer( FILE_LIST_BUFFER_SIZE );
+	// CFileDialog dlgFile(TRUE, _T("ts"), _T("DeckLink"), OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, szFilter, this);
+	// OPENFILENAME& ofn = dlgFile.GetOFN( );
+	// ofn.lpstrFile = p;
+	// ofn.nMaxFile = FILE_LIST_BUFFER_SIZE;
+	// INT_PTR ret=dlgFile.DoModal();
+	
+	// if dialog returns a filename
+	// if( ret == 1) {		
+	
+	// No reason to use saved preferences since we're setting file name through pipe
+	// SetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), REG_SZ, _T("folder"), (BYTE *)m_filename.GetBuffer(MAX_PATH), m_filename.GetLength()*2);
+		
+	//m_filename.ReleaseBuffer();
 
+	//}
+
+	/** New Function **/
+	
+	// We should save this code to update file name info when we get it using the pipe.
+	CString str;
+	str.Format(_T("Selected file: % 26s"), m_filename);
+	m_encoding_static.SetWindowText(str);
+	
 	m_filename.ReleaseBuffer();
 }
 

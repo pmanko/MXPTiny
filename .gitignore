@@ -19,4 +19,7 @@
 *.opensdf
 /ipch/
 *.aps
-/Release/
+
+*.suo
+
+Release/

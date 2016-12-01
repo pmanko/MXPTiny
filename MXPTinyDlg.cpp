@@ -22,6 +22,9 @@
 #include "exeSetup.h"
 #include "EncodingPresetSetup.h"
 #include <chrono>
+#include <iostream>
+#include <fstream>
+#include <string>
 #include <thread>
 #include <wbemidl.h>
 #pragma comment(lib, "wbemuuid.lib")
@@ -91,6 +94,12 @@ CMXPTinyDlg::CMXPTinyDlg(CWnd* pParent /*=NULL*/)
 	m_syncToHost = false;
 	m_failCount = 0;
 
+	LPWSTR appFolder;
+	CString saveFolder;
+	CFile loggerFile;
+	CStringArray *readArray;
+	CString defaultLogger = _T("My Computer");
+
 	TCHAR pf[MAX_PATH];
 
 	// Set angle port number
@@ -98,6 +107,44 @@ CMXPTinyDlg::CMXPTinyDlg(CWnd* pParent /*=NULL*/)
 
 	if(!GetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), _T("bitrate"), (BYTE *)&m_bitrate, sizeof(m_bitrate))) 
 		m_bitrate=20000;
+
+	/*if (!GetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), _T("loggerList"), (BYTE *)&m_loggerList, sizeof(m_loggerList)))
+		m_loggerList.Add(_T("My Computer"));*/
+
+	// Get location of AppData folder
+	SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, NULL, &appFolder);
+	saveFolder.Format(_T("%s\\MXPTiny"), appFolder);
+
+	// Save Logger List
+	if (CreateDirectory(saveFolder, NULL) ||
+		ERROR_ALREADY_EXISTS == GetLastError())
+	{
+		m_savePath.Format(_T("%s\\loggers.txt"), saveFolder);
+		if (loggerFile.Open(m_savePath, CFile::modeRead))
+		{
+			//loggerFile.Write(szBuffer, sizeof(szBuffer));
+			//myFile.Flush();
+			//myFile.Seek(0, CFile::begin);
+			CArchive arLoad(&loggerFile, CArchive::load);
+			try
+			{
+				readArray = (CStringArray*)arLoad.ReadObject(RUNTIME_CLASS(CStringArray));
+				m_loggerList.Append(*readArray);
+			}
+			catch (...)
+			{	
+				SetDefaultLogger();
+			}
+		}
+		else {
+			SetDefaultLogger();
+		}
+
+	}
+	else
+	{
+		// Failed to create directory.
+	}
 
 	GetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), _T("autorec"), (BYTE *)&m_autorec, sizeof(m_autorec));
 	
@@ -134,10 +181,20 @@ CMXPTinyDlg::CMXPTinyDlg(CWnd* pParent /*=NULL*/)
 	m_default_exe.Format(_T("%s\\VideoLAN\\VLC\\vlc.exe --no-fullscreen --sout-transcode-maxwidth=1200 stream://\\\\\\.\\pipe\\DeckLink.ts"), pf);
 
 	SetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\tings"), REG_DWORD, _T("bitrate"), (BYTE *)&m_bitrate, sizeof(m_bitrate));
+	SetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), REG_MULTI_SZ, _T("loggerList"), (BYTE *)&m_loggerList, sizeof(m_loggerList));
+
 	SetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), REG_SZ, _T("folder"), (BYTE *)m_filename.GetBuffer(MAX_PATH), m_filename.GetLength()*2);
 	m_filename.ReleaseBuffer();
 	SetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), REG_SZ, _T("previewcmd"), (BYTE *)m_vlcexe.GetBuffer(MAX_PATH), m_vlcexe.GetLength()*2);
 	m_vlcexe.ReleaseBuffer();
+}
+
+void CMXPTinyDlg::SetDefaultLogger() {
+	m_loggerList.Add(_T("My Computer"));
+	CFile archFile(m_savePath, CFile::modeCreate | CFile::modeReadWrite);
+	CArchive arStore(&archFile, CArchive::store);
+	arStore.WriteObject(&m_loggerList);
+	arStore.Close();
 }
 
 void CMXPTinyDlg::DoDataExchange(CDataExchange* pDX)
@@ -164,6 +221,9 @@ void CMXPTinyDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_SYNC_TO_HOST, m_button_syncToHost);
 	DDX_Text(pDX, IDC_SYNC_HOST, m_syncHost);
 	DDX_Control(pDX, IDC_SYNC_HOST, m_text_syncHost);
+	DDX_Control(pDX, IDC_LOGGER, m_logger);
+	DDX_Control(pDX, IDC_BUTTON_ADD_LOGGER, m_loggerButton);
+	DDX_Control(pDX, IDC_LOGGER_EDIT, m_loggerInput);
 }
 
 BEGIN_MESSAGE_MAP(CMXPTinyDlg, CDialog)
@@ -185,6 +245,8 @@ BEGIN_MESSAGE_MAP(CMXPTinyDlg, CDialog)
 	ON_BN_CLICKED(IDC_SYNC_TO_HOST, &CMXPTinyDlg::OnBnClickedSyncToHost)
 	ON_EN_CHANGE(IDC_SYNC_HOST, &CMXPTinyDlg::OnEnChangeSyncHost)
 	ON_REGISTERED_MESSAGE(SYNC_STATUS, &CMXPTinyDlg::OnSyncStatus)
+	ON_CBN_SELCHANGE(IDC_LOGGER, &CMXPTinyDlg::OnCbnSelchangeLogger)
+	ON_BN_CLICKED(IDC_BUTTON_ADD_LOGGER, &CMXPTinyDlg::OnBnClickedButtonAddLogger)
 END_MESSAGE_MAP()
 
 UINT MonitorHostThreadProc(LPVOID pParam)
@@ -219,6 +281,7 @@ BOOL CMXPTinyDlg::OnInitDialog()
 	
 	// Presume no devices to begin with:
 	UpdateUIForNoDevice();
+	UpdateUIForLoggerChange();
 
 	// Initialise Blackmagic Streaming API
 	HRESULT						result;
@@ -464,6 +527,22 @@ void CMXPTinyDlg::UpdateUIForModeChanges()
 	else
 		StopPreview();
 }
+
+void CMXPTinyDlg::UpdateUIForLoggerChange() {
+	m_logger.ResetContent();
+
+	for (int n = 0; n < m_loggerList.GetCount(); n++)
+	{
+		CString currString(m_loggerList.GetAt(n));
+
+		int newIndex = m_logger.AddString(currString);
+		//m_logger.SetItemDataPtr(newIndex, &currString);
+	}
+
+	m_logger.SetCurSel(0);
+
+}
+
 
 void CMXPTinyDlg::UpdateUIForNewDevice()
 {
@@ -1174,4 +1253,64 @@ UINT CMXPTinyDlg::MonitorHost()
 	CoUninitialize();
 
 	return 0;
+}
+
+
+void CMXPTinyDlg::OnCbnSelchangeLogger()
+{
+	//CString str;
+	//auto idx(m_videoEncodingCombo.GetCurSel());
+	//IBMDStreamingVideoEncodingMode* em = (IBMDStreamingVideoEncodingMode*)m_videoEncodingCombo.GetItemDataPtr(idx);
+
+	//LONGLONG rate = 0;
+	//em->GetInt(bmdStreamingEncodingPropertyVideoFrameRate, &rate);
+	//CString fmt = frameRate2String(rate);
+	//str.Format(_T("Input: Source: X:%d,Y:%d->%dx%d Dest: %dx%d Format: %s"), em->GetSourcePositionX(), em->GetSourcePositionY(), em->GetSourceWidth(), em->GetSourceHeight(), em->GetDestWidth(), em->GetDestHeight(), fmt);
+
+	//m_encoding_static.SetWindowText(str);
+
+	////m_presetIndex = idx;
+	//m_logger = logger;
+
+	//// SetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), REG_DWORD, _T("presetIndex"), (BYTE *)&m_presetIndex, sizeof(m_presetIndex));
+	//SetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), REG_DWORD, _T("logger"), (BYTE *)&m_logger, sizeof(m_logger));
+}
+
+
+
+
+void CMXPTinyDlg::OnBnClickedButtonAddLogger()
+{
+	int windowVisible;
+	CString newLogger;
+
+	windowVisible = GetWindowLong(m_logger, GWL_STYLE);
+
+	if ((windowVisible & WS_VISIBLE) != 0) {
+		m_logger.ShowWindow(FALSE);
+		m_loggerInput.ShowWindow(TRUE);
+		m_loggerInput.SetWindowText(_T(""));
+		m_loggerButton.SetWindowTextW(_T("+ Add"));
+	}
+	else {
+		m_loggerInput.GetWindowText(newLogger);
+		m_loggerList.Add(newLogger);
+
+		CFile archFile(m_savePath, CFile::modeCreate | CFile::modeReadWrite);
+
+		// Create a storing archive.
+		CArchive arStore(&archFile, CArchive::store);
+
+		// Write the object to the archive
+		arStore.WriteObject(&m_loggerList);
+
+		// Close the storing archive
+		arStore.Close();
+		
+		m_logger.ShowWindow(TRUE);
+		m_loggerInput.ShowWindow(FALSE);
+		m_loggerButton.SetWindowTextW(_T("Add New"));
+
+		UpdateUIForLoggerChange();
+	}
 }

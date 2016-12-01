@@ -22,3 +22,5 @@
 /Release/
 
 *.suo
+*.vc.db
+*.vc.opendb

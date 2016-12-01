@@ -1,6 +1,6 @@
 //{{NO_DEPENDENCIES}}
-// Von Microsoft Visual C++ generierte Includedatei.
-// Verwendet durch MXPTiny.rc
+// Microsoft Visual C++ generated include file.
+// Used by MXPTiny.rc
 //
 #define IDOK2                           3
 #define IDVERIFY                        3
@@ -8,6 +8,7 @@
 #define IDR_MAINFRAME                   128
 #define IDD_EXESETUP                    130
 #define IDD_ENCODING_PRESET             131
+#define IDD_LOGGER_DIALOG               134
 #define IDC_STATIC_INPUT_DEVICE         1001
 #define IDC_STATIC_CONFIGBOX            1002
 #define IDC_STATIC_ENCODING_PRESET      1003
@@ -47,14 +48,19 @@
 #define IDC_AUTOREC                     1025
 #define IDC_AUTOREC2                    1026
 #define IDC_SYNC_HOST                   1026
+#define IDC_LOGGER                      1031
+#define IDC_LOGGER_TEXT                 1032
+#define IDC_BUTTON_ADD_LOGGER           1036
+#define IDC_EDIT3                       1037
+#define IDC_LOGGER_EDIT                 1037
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        133
+#define _APS_NEXT_RESOURCE_VALUE        136
 #define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         1027
+#define _APS_NEXT_CONTROL_VALUE         1038
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

@@ -46,6 +46,8 @@ protected:
 	CStatic							m_configBoxStatic;
 	CComboBox						m_videoEncodingCombo;
 	CComboBox						m_videoInputDeviceCombo;
+	CComboBox						m_logger;
+	CEdit							m_loggerInput;
 	BOOL						    m_autorec;
 	BOOL							m_autopreview;
 	BOOL							m_timestampSuffix;
@@ -53,6 +55,7 @@ protected:
 	CString							m_syncHost;
 	DWORD							m_presetIndex;
 	int								anglePort;
+	CStringArray					m_loggerList;
 	CSliderCtrl m_bitrate_slider;
 	CStatic m_bitrate_static;
 	CString m_default_exe;
@@ -69,6 +72,7 @@ protected:
 	HANDLE m_fh;
 	HANDLE m_pipe;
 	CString m_filename;
+	CString m_savePath;
 	CString m_vlcexe;
 	LARGE_INTEGER m_tscount;
 	LARGE_INTEGER m_last_tscount;
@@ -102,6 +106,8 @@ private:
 	void							StartPreview();
 	void							StopPreview();
 	void							UpdateUIForNewDevice();
+	void							UpdateUIForLoggerChange();
+	void							SetDefaultLogger();
 	void							UpdateUIForNoDevice();
 	void							UpdateUIForModeChanges();
 	void							UpdateEncodingPresetsUIForInputMode();
@@ -145,6 +151,7 @@ public:
 	CButton m_button_autopreview;
 	CButton m_button_timestampSuffix;
 	CButton m_button_syncToHost;
+	CButton	m_loggerButton;
 	CEdit m_text_syncHost;
 	afx_msg void OnBnClickedAutorec();
 	afx_msg void OnBnClickedAutopreview();
@@ -154,4 +161,8 @@ public:
 	afx_msg LRESULT OnSyncStatus(WPARAM wParam, LPARAM lParam);
 
 	UINT MonitorHost();
+	afx_msg void OnBnClickedMfcmenubutton1();
+	afx_msg void OnCbnSelchangeLogger();
+	afx_msg void OnStnClickedStaticInputDevice();
+	afx_msg void OnBnClickedButtonAddLogger();
 };

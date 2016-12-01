@@ -254,12 +254,15 @@ BEGIN_MESSAGE_MAP(CMXPTinyDlg, CDialog)
 	ON_BN_CLICKED(IDC_BUTTON_ADD_LOGGER, &CMXPTinyDlg::OnBnClickedButtonAddLogger)
 END_MESSAGE_MAP()
 
-// Seems to create a thread and return a function. Not sure how this works exactly
 UINT MonitorHostThreadProc(LPVOID pParam)
 {
 	return ((CMXPTinyDlg*)pParam)->MonitorHost();
 }
 
+UINT PipeMessageHandlerThreadProc(LPVOID lpParameter)
+{
+	return ((CMXPTinyDlg*)lpParameter)->PipeMessageHandler();
+}
 
 // CMXPTinyDlg message handlers
 BOOL CMXPTinyDlg::OnInitDialog()
@@ -1405,14 +1408,14 @@ UINT CMXPTinyDlg::PipeMessageHandler()
 		if (GetLastError() != ERROR_PIPE_BUSY)
 		{
 			_tprintf(TEXT("Could not open pipe. GLE=%d\n"), GetLastError());
-			return -1;
+			// return -1;
 		}
 
 		// All pipe instances are busy, so wait for 2 seconds. 
 		if (!WaitNamedPipe(pipeAddress, 2000))
 		{
 			printf("Could not open pipe: 2 second wait timed out.");
-			return -1;
+			// return -1;
 		}
 	}
 
@@ -1473,15 +1476,3 @@ UINT CMXPTinyDlg::PipeMessageHandler()
 	return 0L;
 }
 
-UINT MonitorHostThreadProc(LPVOID pParam)
-{
-	return ((CMXPTinyDlg*)pParam)->MonitorHost();
-}
-
-UINT PipeMessageHandlerThreadProc(LPVOID lpParameter)
-{
-	return ((CMXPTinyDlg*)lpParameter)->PipeMessageHandler();
-}
-
-
-	

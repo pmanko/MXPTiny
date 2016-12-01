@@ -160,15 +160,8 @@ CMXPTinyDlg::CMXPTinyDlg(CWnd* pParent /*=NULL*/)
 	GetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), _T("syncHost"), (BYTE *)m_syncHost.GetBuffer(MAX_PATH), MAX_PATH);
 	m_syncHost.ReleaseBuffer();
 
-	if(true) //!GetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), _T("folder"), (BYTE *)m_filename.GetBuffer(MAX_PATH), MAX_PATH))
-	{
-		// This is where the default filename is set. 
-		m_filename.ReleaseBuffer();
-		SHGetSpecialFolderPath( 0, pf, CSIDL_MYDOCUMENTS, TRUE ); 
-		m_filename.Format(_T("%s\\DeckLink.ts"), pf);	
-	} else {
-		m_filename.ReleaseBuffer();
-	}
+	m_filename.Format(_T("C:\\vidwork\\tempa.ts"));
+
 	if(true) // !GetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), _T("previewcmd"), (BYTE *)m_vlcexe.GetBuffer(MAX_PATH), MAX_PATH))
 	{
 		m_vlcexe.ReleaseBuffer();

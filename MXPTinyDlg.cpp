@@ -15,6 +15,8 @@
 //
 //	The developer can be reached at software@baycom.tv
 
+//using namespace System;
+
 
 #include "stdafx.h"
 #include "MXPTiny.h"
@@ -36,6 +38,10 @@
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
+
+#define INFO_BUFFER_SIZE 32767
+#define BUFSIZE 512
+
 
 static UINT SYNC_STATUS = ::RegisterWindowMessageA("SYNC_STATUS");
 
@@ -247,6 +253,7 @@ UINT MonitorHostThreadProc(LPVOID pParam)
 	return ((CMXPTinyDlg*)pParam)->MonitorHost();
 }
 
+
 // CMXPTinyDlg message handlers
 
 BOOL CMXPTinyDlg::OnInitDialog()
@@ -296,6 +303,8 @@ BOOL CMXPTinyDlg::OnInitDialog()
 
 	// Create background thread to service the automatic recording while a host is alive option
 	AfxBeginThread(MonitorHostThreadProc, this);
+
+
 
 	// return TRUE unless you set the focus to a control
 	return TRUE;
@@ -1307,3 +1316,147 @@ void CMXPTinyDlg::OnBnClickedButtonAddLogger()
 		UpdateUIForLoggerChange();
 	}
 }
+
+/* 
+	Pipe Communication
+
+	We need the following:
+	1. A worker thread to continuously look for messages from a pipe. 
+	2. This worker thread should, when it recieves a message, parse the message, and: 
+		a. If it's 'P' message, get filename, send it to main thread
+		b. If it's a 'stop' message, send message to main thread to stop recording
+		c. If it's a 'halt' message, exit thread, stop recording and exit program
+
+*/
+UINT CMXPTinyDlg::PipeMessageHandler()
+{
+	HANDLE hPipe;
+	TCHAR  chBuf[BUFSIZE];
+	BOOL   fSuccess = FALSE;
+	DWORD  cbRead, cbToWrite, cbWritten, dwMode;
+
+
+	CString log;
+	CString pipeAddress;
+	CString readMsg;
+
+	// CEvent* pEvent = (CEvent*)(lpParameter);
+
+	TCHAR  infoBuf[INFO_BUFFER_SIZE];
+	DWORD  bufCharCount = INFO_BUFFER_SIZE;
+
+
+	// VERIFY(pEvent != NULL);
+
+	// Wait for the event to be signaled
+	//::WaitForSingleObject(pEvent->m_hObject, INFINITE);
+
+	m_logger.GetWindowText(log);
+
+	if (log == "My Computer")
+		log = ".";
+
+	GetComputerName(infoBuf, &bufCharCount);
+
+	pipeAddress.Format(_T("\\\\%s\\pipe\\%s%d"), log, infoBuf, anglePort);
+
+	// Try to open a named pipe; wait for it, if necessary. 
+	while (1)
+	{
+		hPipe = CreateFile(
+			pipeAddress,   // pipe name 
+			GENERIC_READ,   // read and write access,
+			0,              // no sharing 
+			NULL,           // default security attributes
+			OPEN_EXISTING,  // opens existing pipe 
+			0,              // default attributes 
+			NULL);          // no template file 
+
+		// Break if the pipe handle is valid. 
+		if (hPipe != INVALID_HANDLE_VALUE)
+			break;
+
+		// Exit if an error other than ERROR_PIPE_BUSY occurs. 
+		if (GetLastError() != ERROR_PIPE_BUSY)
+		{
+			_tprintf(TEXT("Could not open pipe. GLE=%d\n"), GetLastError());
+			return -1;
+		}
+
+		// All pipe instances are busy, so wait for 2 seconds. 
+		if (!WaitNamedPipe(pipeAddress, 2000))
+		{
+			printf("Could not open pipe: 2 second wait timed out.");
+			return -1;
+		}
+	}
+
+	// The pipe connected; change to message-read mode. 
+
+	dwMode = PIPE_READMODE_MESSAGE;
+	fSuccess = SetNamedPipeHandleState(
+		hPipe,    // pipe handle 
+		&dwMode,  // new pipe mode 
+		NULL,     // don't set maximum bytes 
+		NULL);    // don't set maximum time 
+	if (!fSuccess)
+	{
+		_tprintf(TEXT("SetNamedPipeHandleState failed. GLE=%d\n"), GetLastError());
+		return -1;
+	}
+
+	do
+	{
+		// Read from the pipe. 
+
+		fSuccess = ReadFile(
+			hPipe,    // pipe handle 
+			chBuf,    // buffer to receive reply 
+			BUFSIZE * sizeof(TCHAR),  // size of buffer 
+			&cbRead,  // number of bytes read 
+			NULL);    // not overlapped 
+
+		if (!fSuccess && GetLastError() != ERROR_MORE_DATA)
+			break;
+
+		readMsg.Format(_T("%s"), chBuf);
+
+		if (readMsg.GetAt(0) == 'P')
+		{
+			m_filename = readMsg.Mid(1);
+		}
+		else if (readMsg.Mid(0, 4) == "stop")
+		{
+			// Stop Recording!
+		}
+		else if (readMsg.Mid(0,4) == "halt")
+		{
+			// Exit thread!
+			::AfxEndThread(0, FALSE);
+			return 0L;
+		}
+
+	} while (1);  // repeat loop if ERROR_MORE_DATA 
+
+	if (!fSuccess)
+	{
+		_tprintf(TEXT("ReadFile from pipe failed. GLE=%d\n"), GetLastError());
+		return -1;
+	}
+
+	// Terminate the thread
+	return 0L;
+}
+
+UINT MonitorHostThreadProc(LPVOID pParam)
+{
+	return ((CMXPTinyDlg*)pParam)->MonitorHost();
+}
+
+UINT PipeMessageHandlerThreadProc(LPVOID lpParameter)
+{
+	return ((CMXPTinyDlg*)lpParameter)->PipeMessageHandler();
+}
+
+
+	

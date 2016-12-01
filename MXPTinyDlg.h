@@ -165,4 +165,7 @@ public:
 	afx_msg void OnCbnSelchangeLogger();
 	afx_msg void OnStnClickedStaticInputDevice();
 	afx_msg void OnBnClickedButtonAddLogger();
+
+	UINT PipeMessageHandler();
+
 };

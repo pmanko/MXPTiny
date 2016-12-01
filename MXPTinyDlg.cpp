@@ -48,7 +48,7 @@ static UINT SYNC_STATUS = ::RegisterWindowMessageA("SYNC_STATUS");
 // CMXPTinyDlg dialog
 
 
-
+// Gets registry data
 int GetKeyData(HKEY hRootKey, CString subKey, CString value, LPBYTE data, DWORD cbData)
 {
 	HKEY hKey;
@@ -65,6 +65,7 @@ int GetKeyData(HKEY hRootKey, CString subKey, CString value, LPBYTE data, DWORD 
 	return 1;
 }
 
+// Sets registry data
 int SetKeyData(HKEY hRootKey, CString subKey, DWORD dwType, CString value, LPBYTE data, DWORD cbData)
 {
 	HKEY hKey;
@@ -81,6 +82,7 @@ int SetKeyData(HKEY hRootKey, CString subKey, DWORD dwType, CString value, LPBYT
 	return 1;
 }
 
+// Constructor
 CMXPTinyDlg::CMXPTinyDlg(CWnd* pParent /*=NULL*/)
 	: CDialog(CMXPTinyDlg::IDD, pParent)
 {
@@ -188,6 +190,7 @@ CMXPTinyDlg::CMXPTinyDlg(CWnd* pParent /*=NULL*/)
 	m_vlcexe.ReleaseBuffer();
 }
 
+// Save logger information to AppData folder
 void CMXPTinyDlg::SetDefaultLogger() {
 	m_loggerList.Add(_T("My Computer"));
 	CFile archFile(m_savePath, CFile::modeCreate | CFile::modeReadWrite);
@@ -196,6 +199,7 @@ void CMXPTinyDlg::SetDefaultLogger() {
 	arStore.Close();
 }
 
+// What are data exchanges?
 void CMXPTinyDlg::DoDataExchange(CDataExchange* pDX)
 {
 	CDialog::DoDataExchange(pDX);
@@ -225,6 +229,7 @@ void CMXPTinyDlg::DoDataExchange(CDataExchange* pDX)
 	DDX_Control(pDX, IDC_LOGGER_EDIT, m_loggerInput);
 }
 
+// Maps messages to functions. Possible location where messages from other threads can be handled?
 BEGIN_MESSAGE_MAP(CMXPTinyDlg, CDialog)
 	ON_WM_PAINT()
 	ON_WM_QUERYDRAGICON()
@@ -243,11 +248,13 @@ BEGIN_MESSAGE_MAP(CMXPTinyDlg, CDialog)
 	ON_BN_CLICKED(IDC_TIMESTAMP_SUFFIX, &CMXPTinyDlg::OnBnClickedTimestampSuffix)
 	ON_BN_CLICKED(IDC_SYNC_TO_HOST, &CMXPTinyDlg::OnBnClickedSyncToHost)
 	ON_EN_CHANGE(IDC_SYNC_HOST, &CMXPTinyDlg::OnEnChangeSyncHost)
+	// Registred message?? is this thread to thread communication?
 	ON_REGISTERED_MESSAGE(SYNC_STATUS, &CMXPTinyDlg::OnSyncStatus)
 	ON_CBN_SELCHANGE(IDC_LOGGER, &CMXPTinyDlg::OnCbnSelchangeLogger)
 	ON_BN_CLICKED(IDC_BUTTON_ADD_LOGGER, &CMXPTinyDlg::OnBnClickedButtonAddLogger)
 END_MESSAGE_MAP()
 
+// Seems to create a thread and return a function. Not sure how this works exactly
 UINT MonitorHostThreadProc(LPVOID pParam)
 {
 	return ((CMXPTinyDlg*)pParam)->MonitorHost();
@@ -255,7 +262,6 @@ UINT MonitorHostThreadProc(LPVOID pParam)
 
 
 // CMXPTinyDlg message handlers
-
 BOOL CMXPTinyDlg::OnInitDialog()
 {
 	CDialog::OnInitDialog();
@@ -302,8 +308,11 @@ BOOL CMXPTinyDlg::OnInitDialog()
 	}
 
 	// Create background thread to service the automatic recording while a host is alive option
+	// !!! This is where one thread is created
 	AfxBeginThread(MonitorHostThreadProc, this);
-
+	
+	// Pipe reading thread:
+	AfxBeginThread(PipeMessageHandlerThreadProc, this);
 
 
 	// return TRUE unless you set the focus to a control
@@ -367,6 +376,7 @@ void CMXPTinyDlg::OnBnClickedOk()
 		StartPreview();
 }
 
+// Should this be done automatically when process starts?
 void CMXPTinyDlg::StartPreview()
 {
 	if (m_playing)
@@ -402,6 +412,7 @@ void CMXPTinyDlg::StartPreview()
 	SetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), REG_DWORD, _T("bitrate"), (BYTE *)&m_bitrate, sizeof(m_bitrate));
 	m_filename.ReleaseBuffer();
 
+	// Pipe Creation - RELEVANT!
 	m_pipe=CreateNamedPipe(_T("\\\\.\\pipe\\DeckLink.ts"), PIPE_ACCESS_OUTBOUND, PIPE_TYPE_BYTE | PIPE_NOWAIT | PIPE_ACCEPT_REMOTE_CLIENTS, 100, 188*1000, 188*1000, 0, NULL);
 
 	m_playing = true;	
@@ -415,6 +426,7 @@ void CMXPTinyDlg::StartPreview()
     si.cb = sizeof(si);
     ZeroMemory( &pi, sizeof(pi) );
 
+	// How does the vlc process get pipe address info??
 	if(!m_autorec) {
 		CreateProcess( NULL, m_vlcexe.GetBuffer(MAX_PATH), NULL, NULL, false, 0, NULL, NULL,  &si, &pi);
 		m_vlcexe.ReleaseBuffer();
@@ -465,6 +477,7 @@ void CMXPTinyDlg::OnCbnSelchangeComboEncodingPreset()
 	SetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), REG_DWORD, _T("presetIndex"), (BYTE *)&m_presetIndex, sizeof(m_presetIndex));
 }
 
+// Should this be triggered by pipe message? Preview could run all the time. Also, recording does not require preview - recording might happen in different thread?
 void CMXPTinyDlg::StopPreview()
 {
 	CString str;
@@ -530,6 +543,7 @@ void CMXPTinyDlg::UpdateUIForModeChanges()
 		StopPreview();
 }
 
+// Sets logger dropdown
 void CMXPTinyDlg::UpdateUIForLoggerChange() {
 	m_logger.ResetContent();
 
@@ -656,6 +670,7 @@ void CMXPTinyDlg::EncodingPresetsRemoveItems()
 	m_videoEncodingCombo.ResetContent();
 }
 
+// Not sure what this does - queries come up in a couple places, might be relevant to hooking up with blackmagic drivers
 HRESULT CMXPTinyDlg::QueryInterface(REFIID iid, LPVOID* ppv)
 {
 	HRESULT result = E_NOINTERFACE;
@@ -685,6 +700,7 @@ HRESULT CMXPTinyDlg::QueryInterface(REFIID iid, LPVOID* ppv)
 	
 	return result;	
 }
+
 
 void CMXPTinyDlg::activate_device(int i) 
 {
@@ -721,6 +737,8 @@ void CMXPTinyDlg::activate_device(int i)
 	}
 }
 
+/* Actually, can't find function call to any of these functions - maybe they are called by outside streaming device driver as callbacks??*/
+// Message pump - what is that? Main loop - where is that? Can't find where this might be called...
 HRESULT CMXPTinyDlg::StreamingDeviceArrived(IDeckLink* device)
 {
 	dev d;
@@ -860,6 +878,7 @@ HRESULT CMXPTinyDlg::MPEG2TSPacketArrived(IBMDStreamingMPEG2TSPacket* mpeg2TSPac
 	DWORD dwBytesWritten;
 	m_tscount.QuadPart+=len;
 	if(m_playing) {
+		// Why is the pipe created again here?
 		if(!WriteFile(m_pipe, buf, len, &dwBytesWritten, NULL)) {
 			if(GetLastError() == ERROR_NO_DATA ) {
 				CloseHandle(m_pipe);
@@ -917,12 +936,18 @@ HRESULT CMXPTinyDlg::H264VideoInputModeChanged(void)
 }
 
 
+/* 
+	Important - starts recording... creates file, but not sure where it writes to file...
+	Wait! it writes in MPEG2PacketArrived WriteFile section! 
+	Basically, when packet arrives, it gets written if m_fh exists, and does not get written if it doesn't
+ */
 void CMXPTinyDlg::OnBnClickedButtonRecord()
 {
 	if (m_streamingDevice == NULL)
 	return;
 
 	if(m_recording) {
+		// Stops recording
 		if(m_fh != NULL) {
 			CloseHandle(m_fh);
 			m_fh=NULL;
@@ -1143,6 +1168,7 @@ LRESULT CMXPTinyDlg::OnSyncStatus(WPARAM wParam, LPARAM lParam)
 	return 0;
 }
 
+/* This function is brutal to understand - what exactly is the host??*/
 UINT CMXPTinyDlg::MonitorHost()
 {
 	// NOTE: The ping code is largely from http://www.codeproject.com/Articles/10539/Making-WMI-Queries-In-C
@@ -1244,6 +1270,7 @@ UINT CMXPTinyDlg::MonitorHost()
 				}
 
 				// Allow the main thread to finish processing the host state.
+				// IMPORTANT - Sends message to thread!! figure out where/how this is handled
 				PostMessage(SYNC_STATUS, hostUp);
 			}
 		}
@@ -1277,8 +1304,6 @@ void CMXPTinyDlg::OnCbnSelchangeLogger()
 	//// SetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), REG_DWORD, _T("presetIndex"), (BYTE *)&m_presetIndex, sizeof(m_presetIndex));
 	//SetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), REG_DWORD, _T("logger"), (BYTE *)&m_logger, sizeof(m_logger));
 }
-
-
 
 
 void CMXPTinyDlg::OnBnClickedButtonAddLogger()

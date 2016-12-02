@@ -43,7 +43,7 @@
     <ConfigurationType>Application</ConfigurationType>
     <UseOfMfc>Dynamic</UseOfMfc>
     <CharacterSet>Unicode</CharacterSet>
-    <PlatformToolset>v140</PlatformToolset>
+    <PlatformToolset>v110</PlatformToolset>
     <CLRSupport>false</CLRSupport>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
@@ -205,10 +205,8 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\Users\piotr\Downloads\PipeClient_Source\PipeClient Source\CPipeClient.cpp" />
-    <ClCompile Include="..\..\..\Users\piotr\Downloads\PipeClient_Source\PipeClient Source\PipeClient.cpp" />
-    <ClCompile Include="..\..\..\Users\piotr\Downloads\PipeServer_Source\PipeServer Source\CPipeServer.cpp" />
-    <ClCompile Include="..\..\..\Users\piotr\Downloads\PipeServer_Source\PipeServer Source\PipeServer.cpp" />
+    <ClCompile Include="CPipeClient.cpp" />
+    <ClCompile Include="CPipeServer.cpp" />
     <ClCompile Include="EncodingPresetSetup.cpp" />
     <ClCompile Include="exeSetup.cpp" />
     <ClCompile Include="stdafx.cpp">
@@ -231,11 +229,11 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\..\Users\piotr\Downloads\PipeClient_Source\PipeClient Source\CPipeClient.h" />
-    <ClInclude Include="..\..\..\Users\piotr\Downloads\PipeServer_Source\PipeServer Source\CPipeServer.h" />
-    <ClInclude Include="..\..\..\Users\piotr\Downloads\PipeServer_Source\PipeServer Source\PipeConst.h" />
+    <ClInclude Include="CPipeClient.h" />
+    <ClInclude Include="CPipeServer.h" />
     <ClInclude Include="EncodingPresetSetup.h" />
     <ClInclude Include="exeSetup.h" />
+    <ClInclude Include="PipeConst.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="MXPTiny.h" />

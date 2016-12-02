@@ -113,7 +113,7 @@ CMXPTinyDlg::CMXPTinyDlg(CWnd* pParent /*=NULL*/)
 	TCHAR pf[MAX_PATH];
 
 	// Set angle port number
-	anglePort = _tstoi(theApp.m_lpCmdLine);
+	anglePort = 4444; //_tstoi(theApp.m_lpCmdLine);
 
 	if(!GetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), _T("bitrate"), (BYTE *)&m_bitrate, sizeof(m_bitrate))) 
 		m_bitrate=20000;
@@ -1389,10 +1389,23 @@ UINT CMXPTinyDlg::PipeMessageHandler()
 	GetComputerName(infoBuf, &bufCharCount);
 
 	pipeAddress.Format(_T("\\\\%s\\pipe\\%s%d"), log, infoBuf, anglePort);
+	std::wstring pa = pipeAddress;
+
+	CPipeClient* pClient = new CPipeClient(pa);
+	std::wstring mydata;
+
+
+
+	while(1)
+	{
+		pClient->ConnectToServer();
+		pClient->Read();
+		pClient->GetData(mydata);
+	}
 
 
 	
 	// Terminate the thread
-	//return 0L;
+	return 0L;
 }
 

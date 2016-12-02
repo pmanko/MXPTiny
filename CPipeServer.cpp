@@ -1,7 +1,9 @@
-﻿#include "process.h"
+﻿#include "StdAfx.h"
+#include "process.h"
 #include "windows.h"
 #include "tchar.h"
 #include "CPipeServer.h"
+
 
 
 CPipeServer::CPipeServer(void)

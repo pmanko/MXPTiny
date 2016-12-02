@@ -184,6 +184,9 @@ void CPipeClient::ConnectToServer()
 
 void CPipeClient::OnEvent(int nEventID)
 {
+	CString eid;
+	eid.Format(_T("%d"), nEventID);
+	OutputDebugString(eid);
     switch(nEventID)
     {
     case AU_THRD_RUN:

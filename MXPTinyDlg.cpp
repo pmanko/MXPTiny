@@ -34,6 +34,8 @@
 #pragma comment(lib, "comsupp.lib")
 
 #include "DeckLinkAPI_h.h"
+#include "CPipeClient.h"
+#include "CPipeServer.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -1388,91 +1390,9 @@ UINT CMXPTinyDlg::PipeMessageHandler()
 
 	pipeAddress.Format(_T("\\\\%s\\pipe\\%s%d"), log, infoBuf, anglePort);
 
-	// Try to open a named pipe; wait for it, if necessary. 
-	while (1)
-	{
-		hPipe = CreateFile(
-			pipeAddress,   // pipe name 
-			GENERIC_READ,   // read and write access,
-			0,              // no sharing 
-			NULL,           // default security attributes
-			OPEN_EXISTING,  // opens existing pipe 
-			0,              // default attributes 
-			NULL);          // no template file 
 
-		// Break if the pipe handle is valid. 
-		if (hPipe != INVALID_HANDLE_VALUE)
-			break;
-
-		// Exit if an error other than ERROR_PIPE_BUSY occurs. 
-		if (GetLastError() != ERROR_PIPE_BUSY)
-		{
-			_tprintf(TEXT("Could not open pipe. GLE=%d\n"), GetLastError());
-			// return -1;
-		}
-
-		// All pipe instances are busy, so wait for 2 seconds. 
-		if (!WaitNamedPipe(pipeAddress, 2000))
-		{
-			printf("Could not open pipe: 2 second wait timed out.");
-			// return -1;
-		}
-	}
-
-	// The pipe connected; change to message-read mode. 
-
-	dwMode = PIPE_READMODE_MESSAGE;
-	fSuccess = SetNamedPipeHandleState(
-		hPipe,    // pipe handle 
-		&dwMode,  // new pipe mode 
-		NULL,     // don't set maximum bytes 
-		NULL);    // don't set maximum time 
-	if (!fSuccess)
-	{
-		_tprintf(TEXT("SetNamedPipeHandleState failed. GLE=%d\n"), GetLastError());
-		return -1;
-	}
-
-	do
-	{
-		// Read from the pipe. 
-
-		fSuccess = ReadFile(
-			hPipe,    // pipe handle 
-			chBuf,    // buffer to receive reply 
-			BUFSIZE * sizeof(TCHAR),  // size of buffer 
-			&cbRead,  // number of bytes read 
-			NULL);    // not overlapped 
-
-		if (!fSuccess && GetLastError() != ERROR_MORE_DATA)
-			break;
-
-		readMsg.Format(_T("%s"), chBuf);
-
-		if (readMsg.GetAt(0) == 'P')
-		{
-			m_filename = readMsg.Mid(1);
-		}
-		else if (readMsg.Mid(0, 4) == "stop")
-		{
-			// Stop Recording!
-		}
-		else if (readMsg.Mid(0,4) == "halt")
-		{
-			// Exit thread!
-			::AfxEndThread(0, FALSE);
-			return 0L;
-		}
-
-	} while (1);  // repeat loop if ERROR_MORE_DATA 
-
-	if (!fSuccess)
-	{
-		_tprintf(TEXT("ReadFile from pipe failed. GLE=%d\n"), GetLastError());
-		return -1;
-	}
-
+	
 	// Terminate the thread
-	return 0L;
+	//return 0L;
 }
 

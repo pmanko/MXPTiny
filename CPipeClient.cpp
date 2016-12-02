@@ -161,32 +161,36 @@ UINT32 __stdcall CPipeClient::PipeThreadProc(void* pParam)
 
 void CPipeClient::ConnectToServer()
 {
-    OnEvent(AU_CLNT_TRY);
-    m_hPipe = ::CreateFile(
-        m_sPipeName.c_str(),      // pipe name
-        GENERIC_READ | GENERIC_WRITE, // read and write access
-        0,              // no sharing
-        NULL,           // default security attributes
-        OPEN_EXISTING,  // opens existing pipe
-        0,              // default attributes
-        NULL);          // no template file
+    while(1) {
+		OnEvent(AU_CLNT_TRY);
+		m_hPipe = ::CreateFile(
+			m_sPipeName.c_str(),      // pipe name
+			GENERIC_READ | GENERIC_WRITE, // read and write access
+			0,              // no sharing
+			NULL,           // default security attributes
+			OPEN_EXISTING,  // opens existing pipe
+			0,              // default attributes
+			NULL);          // no template file
 
-    if(INVALID_HANDLE_VALUE == m_hPipe)
-    {
-        //SetEventData("Could not connect to pipe server");
-        OnEvent(AU_ERROR);
-    }
-    else
-    {
-        OnEvent(AU_CLNT_CONN);
-    }
+		if(INVALID_HANDLE_VALUE == m_hPipe)
+		{
+			//SetEventData("Could not connect to pipe server");
+			OnEvent(AU_ERROR);
+		}
+		else
+		{
+			OnEvent(AU_CLNT_CONN);
+			break;
+		}
+	}
+
 }
 
 void CPipeClient::OnEvent(int nEventID)
 {
 	CString eid;
 	eid.Format(_T("%d"), nEventID);
-	OutputDebugString(eid);
+	// OutputDebugString(eid);
     switch(nEventID)
     {
     case AU_THRD_RUN:

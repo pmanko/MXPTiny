@@ -39,8 +39,8 @@
 #define new DEBUG_NEW
 #endif
 
-#define INFO_BUFFER_SIZE 32767
-#define BUFSIZE 512
+#define INFO_BUFFER_SIZE 15
+#define BUFSIZE 15
 
 
 static UINT SYNC_STATUS = ::RegisterWindowMessageA("SYNC_STATUS");
@@ -111,7 +111,7 @@ CMXPTinyDlg::CMXPTinyDlg(CWnd* pParent /*=NULL*/)
 	TCHAR pf[MAX_PATH];
 
 	// Set angle port number
-	anglePort = _tstoi(theApp.m_lpCmdLine);
+	anglePort = 4444; // _tstoi(theApp.m_lpCmdLine);
 
 	if(!GetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), _T("bitrate"), (BYTE *)&m_bitrate, sizeof(m_bitrate))) 
 		m_bitrate=20000;
@@ -1359,6 +1359,8 @@ void CMXPTinyDlg::OnBnClickedButtonAddLogger()
 UINT CMXPTinyDlg::PipeMessageHandler()
 {
 	HANDLE hPipe;
+	HANDLE hPipe2;
+
 	TCHAR  chBuf[BUFSIZE];
 	BOOL   fSuccess = FALSE;
 	DWORD  cbRead, cbToWrite, cbWritten, dwMode;
@@ -1388,88 +1390,157 @@ UINT CMXPTinyDlg::PipeMessageHandler()
 
 	pipeAddress.Format(_T("\\\\%s\\pipe\\%s%d"), log, infoBuf, anglePort);
 
-	// Try to open a named pipe; wait for it, if necessary. 
-	while (1)
-	{
-		hPipe = CreateFile(
-			pipeAddress,   // pipe name 
-			GENERIC_READ,   // read and write access,
-			0,              // no sharing 
-			NULL,           // default security attributes
-			OPEN_EXISTING,  // opens existing pipe 
-			0,              // default attributes 
-			NULL);          // no template file 
+	while(1) {
+		// Try to open a named pipe; wait for it, if necessary. 
+		while (1)
+		{
+		  //fSuccess = CallNamedPipe( 
+				//pipeAddress,        // pipe name 
+				//NULL,           // message to server 
+		  //      NULL, // message length 
+				//chBuf,              // buffer to receive reply 
+				//BUFSIZE*sizeof(TCHAR),  // size of read buffer 
+				//&cbRead,                // number of bytes read 
+				//NMPWAIT_WAIT_FOREVER);                
+			hPipe = CreateFile(
+				pipeAddress,   // pipe name 
+				GENERIC_READ,   // read and write access,
+				0,              // no sharing 
+				NULL,           // default security attributes
+				OPEN_EXISTING,  // opens existing pipe 
+				0,              // default attributes 
+				NULL);          // no template file 
+		
+			// Break if the pipe handle is valid. 
+			if (hPipe != INVALID_HANDLE_VALUE)
+				break;
 
-		// Break if the pipe handle is valid. 
+			// Exit if an error other than ERROR_PIPE_BUSY occurs. 
+			if (GetLastError() != ERROR_PIPE_BUSY)
+			{
+				_tprintf(TEXT("Could not open pipe. GLE=%d\n"), GetLastError());
+				// return -1;
+			}
+
+			// All pipe instances are busy, so wait for 2 seconds. 
+			if (!WaitNamedPipe(pipeAddress, 2000))
+			{
+				printf("Could not open pipe: 2 second wait timed out.");
+				// return -1;
+			}
+		}
+
+		/*fSuccess = CloseHandle(
+			hPipe);*/
 		if (hPipe != INVALID_HANDLE_VALUE)
-			break;
+			1==1;
 
-		// Exit if an error other than ERROR_PIPE_BUSY occurs. 
-		if (GetLastError() != ERROR_PIPE_BUSY)
+		// The pipe connected; change to message-read mode. 
+		while (1)
 		{
-			_tprintf(TEXT("Could not open pipe. GLE=%d\n"), GetLastError());
-			// return -1;
+			hPipe2 = CreateFile(
+				pipeAddress,   // pipe name 
+				GENERIC_READ,   // read and write access,
+				0,              // no sharing 
+				NULL,           // default security attributes
+				OPEN_EXISTING,  // opens existing pipe 
+				0,              // default attributes 
+				NULL);          // no template file 
+		
+			// Break if the pipe handle is valid. 
+			if (hPipe2 != INVALID_HANDLE_VALUE)
+				break;
+
+			// Exit if an error other than ERROR_PIPE_BUSY occurs. 
+			if (GetLastError() != ERROR_PIPE_BUSY)
+			{
+				_tprintf(TEXT("Could not open pipe. GLE=%d\n"), GetLastError());
+				// return -1;
+			}
+
+			// All pipe instances are busy, so wait for 2 seconds. 
+			if (!WaitNamedPipe(pipeAddress, 2000))
+			{
+				printf("Could not open pipe: 2 second wait timed out.");
+				// return -1;
+			}
 		}
 
-		// All pipe instances are busy, so wait for 2 seconds. 
-		if (!WaitNamedPipe(pipeAddress, 2000))
-		{
-			printf("Could not open pipe: 2 second wait timed out.");
-			// return -1;
-		}
-	}
-
-	// The pipe connected; change to message-read mode. 
-
-	dwMode = PIPE_READMODE_MESSAGE;
+	dwMode = PIPE_READMODE_BYTE;
 	fSuccess = SetNamedPipeHandleState(
-		hPipe,    // pipe handle 
+		hPipe2,    // pipe handle 
 		&dwMode,  // new pipe mode 
 		NULL,     // don't set maximum bytes 
 		NULL);    // don't set maximum time 
+	
 	if (!fSuccess)
 	{
 		_tprintf(TEXT("SetNamedPipeHandleState failed. GLE=%d\n"), GetLastError());
+		DWORD errorMessageID = ::GetLastError();
+	
+		LPSTR messageBuffer = nullptr;
+		size_t size = FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+									 NULL, errorMessageID, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR)&messageBuffer, 0, NULL);
+
+		std::string message(messageBuffer, size);
+
+		//Free the buffer.
+		LocalFree(messageBuffer);
+
 		return -1;
 	}
 
-	do
-	{
-		// Read from the pipe. 
-
-		fSuccess = ReadFile(
-			hPipe,    // pipe handle 
-			chBuf,    // buffer to receive reply 
-			BUFSIZE * sizeof(TCHAR),  // size of buffer 
-			&cbRead,  // number of bytes read 
-			NULL);    // not overlapped 
-
-		if (!fSuccess && GetLastError() != ERROR_MORE_DATA)
-			break;
-
-		readMsg.Format(_T("%s"), chBuf);
-
-		if (readMsg.GetAt(0) == 'P')
+		do
 		{
-			m_filename = readMsg.Mid(1);
-		}
-		else if (readMsg.Mid(0, 4) == "stop")
+			// Read from the pipe. 
+			fSuccess = ReadFile(
+				hPipe2,    // pipe handle 
+				chBuf,    // buffer to receive reply 
+				BUFSIZE,  // size of buffer 
+				&cbRead,  // number of bytes read 
+				NULL);    // not overlapped 
+
+			if (!fSuccess && GetLastError() != ERROR_MORE_DATA)
+				break;
+
+			readMsg.Format(_T("%s"), chBuf);
+
+			if (readMsg.GetAt(0) == 'P')
+			{
+				m_filename = readMsg.Mid(1);
+			}
+			else if (readMsg.Mid(0, 4) == "stop")
+			{
+				// Stop Recording!
+			}
+			else if (readMsg.Mid(0,4) == "halt")
+			{
+				// Exit thread!
+				::AfxEndThread(0, FALSE);
+				return 0L;
+			}
+
+		} while (1);  // repeat loop if ERROR_MORE_DATA 
+
+		if (!fSuccess)
 		{
-			// Stop Recording!
-		}
-		else if (readMsg.Mid(0,4) == "halt")
-		{
-			// Exit thread!
-			::AfxEndThread(0, FALSE);
-			return 0L;
+			_tprintf(TEXT("SetNamedPipeHandleState failed. GLE=%d\n"), GetLastError());
+			DWORD errorMessageID = ::GetLastError();
+	
+			LPSTR messageBuffer = nullptr;
+			size_t size = FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+										 NULL, errorMessageID, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR)&messageBuffer, 0, NULL);
+
+			std::string message(messageBuffer, size);
+
+			//Free the buffer.
+			LocalFree(messageBuffer);
+
+			return -1;
 		}
 
-	} while (1);  // repeat loop if ERROR_MORE_DATA 
-
-	if (!fSuccess)
-	{
-		_tprintf(TEXT("ReadFile from pipe failed. GLE=%d\n"), GetLastError());
-		return -1;
+		fSuccess = CloseHandle(
+			hPipe);
 	}
 
 	// Terminate the thread

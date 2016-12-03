@@ -2,7 +2,6 @@
 #include "process.h"
 #include "CPipeClient.h"
 
-
 CPipeClient::CPipeClient(void)
 {
 }
@@ -11,13 +10,16 @@ CPipeClient::CPipeClient(std::wstring& sName) : m_sPipeName(sName),
                                                 m_hThread(NULL), 
                                                 m_nEvent(AU_INIT)
 {
-    m_buffer = (wchar_t*)calloc(AU_DATA_BUF, sizeof(wchar_t));
+    m_newbuffer = (char*)calloc(AU_DATA_BUF, sizeof(char));
+	m_buffer = (wchar_t*)calloc(AU_DATA_BUF, sizeof(wchar_t));
     Init();
 }
 
 CPipeClient::~CPipeClient(void)
 {
     delete m_buffer;
+	delete m_newbuffer;
+	m_newbuffer = NULL;
     m_buffer = NULL;
 }
 
@@ -51,8 +53,14 @@ void CPipeClient::SetData(std::wstring& sData)
 // Get data from buffer
 void CPipeClient::GetData(std::wstring& sData)
 {
-    sData.clear(); // Clear old data, if any
-    sData.append(m_buffer);
+	std::string str = m_newbuffer;
+	std::wstring str2(str.length(), L' '); // Make room for characters
+
+	// Copy string to wstring.
+	std::copy(str.begin(), str.end(), str2.begin());
+
+	sData.clear(); // Clear old data, if any
+    sData.append(str2);
 }
 
 void CPipeClient::Init()
@@ -161,11 +169,14 @@ UINT32 __stdcall CPipeClient::PipeThreadProc(void* pParam)
 
 void CPipeClient::ConnectToServer()
 {
+	CString s;
+	s = m_sPipeName.c_str();
+	
     while(1) {
 		OnEvent(AU_CLNT_TRY);
 		m_hPipe = ::CreateFile(
 			m_sPipeName.c_str(),      // pipe name
-			GENERIC_READ | GENERIC_WRITE, // read and write access
+			GENERIC_READ, // read and write access
 			0,              // no sharing
 			NULL,           // default security attributes
 			OPEN_EXISTING,  // opens existing pipe
@@ -256,7 +267,7 @@ bool CPipeClient::Read()
     {
         bFinishedRead = ::ReadFile( 
             m_hPipe,            // handle to pipe 
-            &m_buffer[read],    // buffer to receive data 
+            &m_newbuffer[read],    // buffer to receive data 
             AU_DATA_BUF,        // size of buffer 
             &drBytes,           // number of bytes read 
             NULL);              // not overlapped I/O 

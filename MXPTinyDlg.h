@@ -159,6 +159,10 @@ public:
 	afx_msg void OnBnClickedSyncToHost();
 	afx_msg void OnEnChangeSyncHost();
 	afx_msg LRESULT OnSyncStatus(WPARAM wParam, LPARAM lParam);
+	afx_msg LRESULT OnStartMsg(WPARAM wParam, LPARAM lParam);
+	afx_msg LRESULT OnStopMsg(WPARAM wParam, LPARAM lParam);
+	afx_msg LRESULT OnHaltMsg(WPARAM wParam, LPARAM lParam);
+	afx_msg LRESULT OnInitMsg(WPARAM wParam, LPARAM lParam);
 
 	UINT MonitorHost();
 	afx_msg void OnBnClickedMfcmenubutton1();

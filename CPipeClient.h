@@ -118,6 +118,6 @@ private:
     HANDLE m_hThread;               // Pipe thread
     int    m_nEvent;                // Pipe event
     wchar_t* m_buffer;              // Buffer to hold data
-
+	char * m_newbuffer;
 };
 

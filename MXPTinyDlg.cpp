@@ -46,6 +46,10 @@
 
 
 static UINT SYNC_STATUS = ::RegisterWindowMessageA("SYNC_STATUS");
+static UINT START_MSG = ::RegisterWindowMessageA("START_MSG");
+static UINT STOP_MSG = ::RegisterWindowMessageA("STOP_MSG");
+static UINT HALT_MSG = ::RegisterWindowMessageA("HALT_MSG");
+static UINT INIT_MSG = ::RegisterWindowMessageA("INIT_MSG");
 
 // CMXPTinyDlg dialog
 
@@ -89,7 +93,6 @@ CMXPTinyDlg::CMXPTinyDlg(CWnd* pParent /*=NULL*/)
 	: CDialog(CMXPTinyDlg::IDD, pParent)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
-
 	m_streamingDiscovery = NULL;
 	m_streamingDevice = NULL;
 	m_streamingDeviceInput = NULL;
@@ -252,6 +255,10 @@ BEGIN_MESSAGE_MAP(CMXPTinyDlg, CDialog)
 	ON_EN_CHANGE(IDC_SYNC_HOST, &CMXPTinyDlg::OnEnChangeSyncHost)
 	// Registred message?? is this thread to thread communication?
 	ON_REGISTERED_MESSAGE(SYNC_STATUS, &CMXPTinyDlg::OnSyncStatus)
+	ON_REGISTERED_MESSAGE(START_MSG, &CMXPTinyDlg::OnStartMsg)
+	ON_REGISTERED_MESSAGE(STOP_MSG, &CMXPTinyDlg::OnStopMsg)
+	ON_REGISTERED_MESSAGE(HALT_MSG, &CMXPTinyDlg::OnHaltMsg)
+	ON_REGISTERED_MESSAGE(INIT_MSG, &CMXPTinyDlg::OnInitMsg)
 	ON_CBN_SELCHANGE(IDC_LOGGER, &CMXPTinyDlg::OnCbnSelchangeLogger)
 	ON_BN_CLICKED(IDC_BUTTON_ADD_LOGGER, &CMXPTinyDlg::OnBnClickedButtonAddLogger)
 END_MESSAGE_MAP()
@@ -1132,6 +1139,45 @@ void CMXPTinyDlg::OnEnChangeSyncHost()
 	m_syncHost.ReleaseBuffer();
 }
 
+LRESULT CMXPTinyDlg::OnStopMsg(WPARAM wParam, LPARAM lParam) 
+{
+	OnBnClickedButtonRecord();
+	return 0;
+}
+
+LRESULT CMXPTinyDlg::OnStartMsg(WPARAM wParam, LPARAM lParam) 
+{
+	CString* passedFn = (CString*)lParam;
+
+	passedFn->Replace(_T(".avi"), _T(".ts"));
+	passedFn->Replace(_T("c:\\"), _T("c:\\pwmTEMP\\"));
+
+	m_filename.Format(_T("%s"), *passedFn);
+	OnBnClickedButtonRecord();
+
+	return 0;
+}
+
+LRESULT CMXPTinyDlg::OnHaltMsg(WPARAM wParam, LPARAM lParam) 
+{
+	CString str;
+	str.Format(_T("Disconnected from Logger"));
+
+	m_encoding_static.SetWindowText(str);
+
+	return 0;
+}
+
+LRESULT CMXPTinyDlg::OnInitMsg(WPARAM wParam, LPARAM lParam) 
+{
+	CString str;
+	str.Format(_T("Connected to Logger on Port: %d"), anglePort);
+
+	m_encoding_static.SetWindowText(str);
+
+	return 0;
+}
+
 LRESULT CMXPTinyDlg::OnSyncStatus(WPARAM wParam, LPARAM lParam)
 {
 	// Preview/Sotp button must be enabled for this to be available.
@@ -1393,16 +1439,42 @@ UINT CMXPTinyDlg::PipeMessageHandler()
 
 	CPipeClient* pClient = new CPipeClient(pa);
 	std::wstring mydata;
+	std::wstring flag;
+	CString filePath;
 
 
-
-	while(1)
-	{
+	while(1) {
 		pClient->ConnectToServer();
 		pClient->Read();
 		pClient->GetData(mydata);
+		pClient->Close();
+
+		flag = mydata.substr(0,1);
+
+		if(flag == _T("P")) 
+		{
+			
+			filePath = mydata.c_str();
+			filePath = filePath.Mid(1);
+			SendMessage(START_MSG, (WPARAM) TRUE, (LPARAM) &filePath);
+
+		}
+		else if (mydata == _T("stop"))
+		{
+			SendMessage(STOP_MSG, (WPARAM) TRUE);
+		} 
+		else if (mydata == _T("halt"))
+		{
+			SendMessage(HALT_MSG, (WPARAM) TRUE);
+		}
+		else if (mydata == _T("INIT")) 
+		{
+			SendMessage(INIT_MSG, (WPARAM) TRUE);
+		}
+
 	}
 
+	mydata;
 
 	
 	// Terminate the thread

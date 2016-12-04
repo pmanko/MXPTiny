@@ -102,7 +102,7 @@ CMXPTinyDlg::CMXPTinyDlg(CWnd* pParent /*=NULL*/)
 	m_recording = false;
 	m_deviceMode = bmdStreamingDeviceUnknown;
 	m_autorec = false;
-	m_autopreview = false;
+	m_autopreview = true;
 	m_timestampSuffix = false;
 	m_syncToHost = false;
 	m_failCount = 0;
@@ -161,7 +161,7 @@ CMXPTinyDlg::CMXPTinyDlg(CWnd* pParent /*=NULL*/)
 
 	GetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), _T("autorec"), (BYTE *)&m_autorec, sizeof(m_autorec));
 	
-	GetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), _T("autopreview"), (BYTE *)&m_autopreview, sizeof(m_autopreview));
+	//GetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), _T("autopreview"), (BYTE *)&m_autopreview, sizeof(m_autopreview));
 	
 	GetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), _T("timestampSuffix"), (BYTE *)&m_timestampSuffix, sizeof(m_timestampSuffix));
 	
@@ -538,14 +538,14 @@ void CMXPTinyDlg::UpdateUIForModeChanges()
 	m_bitrate_slider.EnableWindow(enablePresets);
 	m_prevcfg_button.EnableWindow(enablePresets);
 	m_folder_button.EnableWindow(!m_recording);
-	m_record_button.EnableWindow(!enablePresets);
+	m_record_button.EnableWindow(TRUE);
 	m_button_customize.EnableWindow(enablePresets);
 	
 	bool enableStartStop = (m_deviceMode == bmdStreamingDeviceIdle || m_deviceMode == bmdStreamingDeviceEncoding);
 	m_startButton.EnableWindow(enableStartStop);
 
 	bool start = /*!m_playing;*/ m_deviceMode != bmdStreamingDeviceEncoding;
-	m_startButton.SetWindowText(start ? _T("Preview") : _T("Stop"));
+	m_startButton.SetWindowText(start ? _T("Preview") : _T("Stop Preview"));
 	if (m_deviceMode == bmdStreamingDeviceEncoding)
 	{
 //		if (m_inputMode != bmdModeUnknown)
@@ -909,7 +909,7 @@ HRESULT CMXPTinyDlg::MPEG2TSPacketArrived(IBMDStreamingMPEG2TSPacket* mpeg2TSPac
 				GetFileSizeEx( m_fh, &FileSize);
 				str.Format(_T("%s    -    Recording (kB): % 6llu %s"), str, FileSize.QuadPart>>10, rec_error?_T("- ERROR WRITING !!!"):_T(""));
 			}
-			m_encoding_static.SetWindowText(str);
+			// m_encoding_static.SetWindowText(str);
 		}
 	}
 	return S_OK;
@@ -966,6 +966,33 @@ void CMXPTinyDlg::OnBnClickedButtonRecord()
 		}		
 		m_record_button.SetWindowTextW(_T("Record"));
 		m_recording=false;
+	    STARTUPINFOW si;
+		PROCESS_INFORMATION pi;
+
+		memset(&si, 0, sizeof(si));
+		si.cb = sizeof(si);
+		ZeroMemory(&pi, sizeof(pi));
+		CString fMp4 = m_filename.Left(m_filename.GetLength() - 3);
+		CString fAvi = m_filename.Left(m_filename.GetLength() - 3);
+		fMp4 += TEXT(".mp4");
+		fAvi += TEXT(".avi");
+		CString str = TEXT("c:\\bats99\\ffmpeg2 -i " + m_filename + " -bsf:a aac_adtstoasc -acodec copy -vcodec copy " + fMp4 + " -y");
+		TCHAR cmd[1024];
+		_tcscpy(cmd, str.GetBuffer(1024));
+		str.ReleaseBuffer();
+		if (CreateProcess(NULL, cmd, NULL, NULL, FALSE, CREATE_NO_WINDOW, NULL, NULL, &si, &pi))
+		{
+			WaitForSingleObject(pi.hProcess, INFINITE);
+			CloseHandle(pi.hProcess);
+			CloseHandle(pi.hThread);
+		}
+		CFileStatus status;
+		if (CFile::GetStatus(fAvi.GetString(), status) != 0) {
+			CFile::Remove(fAvi.GetString());
+		}
+	    CFile::Rename(fMp4.GetString(), fAvi.GetString());
+
+		CFile::Remove(m_filename.GetString());
 	} else {
 		// Should never happen
 		if(!m_filename.IsEmpty()) {
@@ -1142,17 +1169,31 @@ void CMXPTinyDlg::OnEnChangeSyncHost()
 LRESULT CMXPTinyDlg::OnStopMsg(WPARAM wParam, LPARAM lParam) 
 {
 	OnBnClickedButtonRecord();
+	CString str;
+
+	// Add info about saved mp4 file name?
+	str.Format(_T("Finished recording!"));
+
+	m_encoding_static.SetWindowText(str);
 	return 0;
 }
 
 LRESULT CMXPTinyDlg::OnStartMsg(WPARAM wParam, LPARAM lParam) 
 {
 	CString* passedFn = (CString*)lParam;
+	CString str;
 
 	passedFn->Replace(_T(".avi"), _T(".ts"));
-	passedFn->Replace(_T("c:\\"), _T("c:\\pwmTEMP\\"));
+	passedFn->Replace(_T(".AVI"), _T(".ts"));
+
+	// passedFn->Replace(_T("c:\\"), _T("c:\\pwmTEMP\\"));
 
 	m_filename.Format(_T("%s"), *passedFn);
+
+	str.Format(_T("Recording to file: %s"), *passedFn);
+
+	m_encoding_static.SetWindowText(str);
+
 	OnBnClickedButtonRecord();
 
 	return 0;
@@ -1164,7 +1205,7 @@ LRESULT CMXPTinyDlg::OnHaltMsg(WPARAM wParam, LPARAM lParam)
 	str.Format(_T("Disconnected from Logger"));
 
 	m_encoding_static.SetWindowText(str);
-
+	OnBnClickedOk();
 	return 0;
 }
 
@@ -1180,7 +1221,7 @@ LRESULT CMXPTinyDlg::OnInitMsg(WPARAM wParam, LPARAM lParam)
 
 LRESULT CMXPTinyDlg::OnSyncStatus(WPARAM wParam, LPARAM lParam)
 {
-	// Preview/Sotp button must be enabled for this to be available.
+	// Preview/Stop button must be enabled for this to be available.
 	if (m_startButton.IsWindowEnabled())
 	{
 		if ((BOOL)wParam)

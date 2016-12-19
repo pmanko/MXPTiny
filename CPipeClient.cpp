@@ -1,5 +1,6 @@
 ﻿#include "StdAfx.h"
 #include "process.h"
+#include "globals.h"
 #include "CPipeClient.h"
 
 CPipeClient::CPipeClient(void)
@@ -102,7 +103,7 @@ UINT32 __stdcall CPipeClient::PipeThreadProc(void* pParam)
         return 1L;
 
     pPipe->OnEvent(AU_THRD_RUN);
-    while(true)
+    while(!ShouldExit)
     {
         int nEventID = pPipe->GetEvent();
         if(nEventID == AU_ERROR || nEventID == AU_TERMINATE)
@@ -157,11 +158,11 @@ UINT32 __stdcall CPipeClient::PipeThreadProc(void* pParam)
 
         case AU_IOPENDING:
         default:
-            Sleep(10);
+            // Sleep(10);
             continue;
         };
 
-        Sleep(10);
+        // Sleep(10);
     };
 
     return 0;
@@ -172,7 +173,7 @@ void CPipeClient::ConnectToServer()
 	CString s;
 	s = m_sPipeName.c_str();
 	
-    while(1) {
+    while(!ShouldExit) {
 		OnEvent(AU_CLNT_TRY);
 		m_hPipe = ::CreateFile(
 			m_sPipeName.c_str(),      // pipe name
@@ -194,6 +195,8 @@ void CPipeClient::ConnectToServer()
 			break;
 		}
 	}
+	if(ShouldExit)
+		OnEvent(AU_ERROR);
 
 }
 
@@ -265,6 +268,8 @@ bool CPipeClient::Read()
     int read = 0;
     do
     {
+		if(ShouldExit)
+			break;
         bFinishedRead = ::ReadFile( 
             m_hPipe,            // handle to pipe 
             &m_newbuffer[read],    // buffer to receive data 
@@ -279,7 +284,7 @@ bool CPipeClient::Read()
         }
         read += drBytes;
 
-    }while(!bFinishedRead);
+    }while(!bFinishedRead && !ShouldExit);
 
     if(FALSE == bFinishedRead || 0 == drBytes)
     {

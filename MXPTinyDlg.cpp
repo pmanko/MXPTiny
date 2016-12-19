@@ -19,6 +19,7 @@
 
 
 #include "stdafx.h"
+#include "globals.h"
 #include "MXPTiny.h"
 #include "MXPTinyDlg.h"
 #include "exeSetup.h"
@@ -52,6 +53,7 @@ static UINT HALT_MSG = ::RegisterWindowMessageA("HALT_MSG");
 static UINT INIT_MSG = ::RegisterWindowMessageA("INIT_MSG");
 
 // CMXPTinyDlg dialog
+volatile bool ShouldExit;
 
 
 // Gets registry data
@@ -324,7 +326,10 @@ BOOL CMXPTinyDlg::OnInitDialog()
 	AfxBeginThread(MonitorHostThreadProc, this);
 	
 	// Pipe reading thread:
-	pipeThread = AfxBeginThread(PipeMessageHandlerThreadProc, this);
+	ShouldExit = false;
+	CWinThread* myThread = AfxBeginThread(PipeMessageHandlerThreadProc, this);
+
+	pipeThread = myThread->m_hThread;
 
 
 	// return TRUE unless you set the focus to a control
@@ -1178,7 +1183,8 @@ void CMXPTinyDlg::OnEnChangeSyncHost()
 
 LRESULT CMXPTinyDlg::OnStopMsg(WPARAM wParam, LPARAM lParam) 
 {
-	OnBnClickedButtonRecord();
+	if(m_recording)
+		OnBnClickedButtonRecord();
 	CString str;
 
 	// Add info about saved mp4 file name?
@@ -1204,7 +1210,8 @@ LRESULT CMXPTinyDlg::OnStartMsg(WPARAM wParam, LPARAM lParam)
 
 	// m_encoding_static.SetWindowText(str);
 
-	OnBnClickedButtonRecord();
+	if(!m_recording)
+		OnBnClickedButtonRecord();
 
 	return 0;
 }
@@ -1389,6 +1396,7 @@ UINT CMXPTinyDlg::MonitorHost()
 
 void CMXPTinyDlg::OnCbnSelchangeLogger()
 {
+	DWORD tmp;
 	//CString str;
 	//auto idx(m_videoEncodingCombo.GetCurSel());
 	//IBMDStreamingVideoEncodingMode* em = (IBMDStreamingVideoEncodingMode*)m_videoEncodingCombo.GetItemDataPtr(idx);
@@ -1410,10 +1418,39 @@ void CMXPTinyDlg::OnCbnSelchangeLogger()
 		OnBnClickedButtonRecord();
 
 	// Pipe reading thread:
-	TerminateThread(pipeThread, 0);
+	// TerminateThread(pipeThread, 0);
+	ShouldExit = true;
+	CancelSynchronousIo(pipeThread);
+	DWORD result = WaitForSingleObject(pipeThread, 5000);
 
-	pipeThread = AfxBeginThread(PipeMessageHandlerThreadProc, this);
+	while(true)
+	{
+		if(result == WAIT_OBJECT_0) {
+			ShouldExit = false;
+			CWinThread* myThread = AfxBeginThread(PipeMessageHandlerThreadProc, this);
 
+			pipeThread = myThread->m_hThread;
+			break;
+		} 
+		else if (result == WAIT_ABANDONED)
+		{
+			tmp = 0;
+			break;
+		}
+		else if (result == WAIT_TIMEOUT)
+		{
+			tmp = 1;
+
+			TerminateThread(pipeThread, 0);
+			DWORD result = WaitForSingleObject(pipeThread, 5000);
+		}
+		else if (result == WAIT_FAILED)
+		{
+			DWORD dw = GetLastError(); 
+			tmp = 3;
+			break;
+		}
+	}
 }
 
 
@@ -1505,8 +1542,11 @@ UINT CMXPTinyDlg::PipeMessageHandler()
 	std::wstring flag;
 	CString filePath;
 
+	//pClient->Read();
+	//pClient->Close();
+	//pClient->ConnectToServer();
 
-	while(1) {
+	while(!ShouldExit) {
 		pClient->ConnectToServer();
 		pClient->Read();
 		pClient->GetData(mydata);
@@ -1514,9 +1554,7 @@ UINT CMXPTinyDlg::PipeMessageHandler()
 
 		flag = mydata.substr(0,1);
 
-		m_logger.GetWindowText(log);
-
-		if(myLogger == log)
+		if(!ShouldExit)//myLogger == log)
 		{
 			if(flag == _T("P")) 
 			{

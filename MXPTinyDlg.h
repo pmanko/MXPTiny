@@ -172,4 +172,6 @@ public:
 
 	UINT PipeMessageHandler();
 
+	UINT CheckForThreadReset();
+
 };

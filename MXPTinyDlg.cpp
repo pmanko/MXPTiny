@@ -1543,25 +1543,9 @@ UINT CMXPTinyDlg::PipeMessageHandler()
 		CPipeClient* pClient = new CPipeClient(pa);
 		
 		pClient->ConnectToServer();
-
-		DWORD dwWaitResult;
-		dwWaitResult = WaitForSingleObject(
-			ghMutex,    // handle to mutex
-			INFINITE);  // no time-out interval
-		if (toggle == true)
-		{
-			toggle = false;
-			ReleaseMutex(ghMutex);
-			AfxEndThread(0);
-		}
-		else {
-			ReleaseMutex(ghMutex);
-		}
-
-		
-
-
+		CheckForThreadReset();
 		pClient->Read();
+		CheckForThreadReset();
 		pClient->GetData(mydata);
 		pClient->Close();
 
@@ -1597,3 +1581,19 @@ UINT CMXPTinyDlg::PipeMessageHandler()
 	return 0L;
 }
 
+UINT CMXPTinyDlg::CheckForThreadReset() {
+	DWORD dwWaitResult;
+	dwWaitResult = WaitForSingleObject(
+		ghMutex,    // handle to mutex
+		INFINITE);  // no time-out interval
+	if (toggle == true)
+	{
+		toggle = false;
+		ReleaseMutex(ghMutex);
+		AfxEndThread(0);
+	}
+	else {
+		ReleaseMutex(ghMutex);
+	}
+
+}

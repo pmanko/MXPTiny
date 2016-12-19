@@ -974,6 +974,15 @@ void CMXPTinyDlg::OnBnClickedButtonRecord()
 	if (m_streamingDevice == NULL)
 	return;
 
+	//if(m_recording) {
+	//	m_record_button.SetWindowTextW(_T("Record"));
+	//	m_recording=false;
+	//}
+	//else {
+	//	m_record_button.SetWindowTextW(_T("Recording..."));
+	//	m_recording=true;
+	//}
+
 	if(m_recording) {
 		// Stops recording
 		if(m_fh != NULL) {
@@ -1525,9 +1534,10 @@ UINT CMXPTinyDlg::PipeMessageHandler()
 	std::wstring mydata;
 	std::wstring flag;
 	CString filePath;
+	bool endNow = false;
 
 
-	while(1) {
+	while(!endNow) {
 
 		m_logger.GetWindowText(log);
 
@@ -1543,38 +1553,41 @@ UINT CMXPTinyDlg::PipeMessageHandler()
 		CPipeClient* pClient = new CPipeClient(pa);
 		
 		pClient->ConnectToServer();
-		CheckForThreadReset();
+		if(CheckForThreadReset()) endNow = true;
 		pClient->Read();
-		CheckForThreadReset();
+		if(CheckForThreadReset()) endNow = true;
 		pClient->GetData(mydata);
+		if(CheckForThreadReset()) endNow = true;
+
 		pClient->Close();
 
 		flag = mydata.substr(0,1);
 
-		if(flag == _T("P")) 
-		{
+		if(!endNow) {
+			if(flag == _T("P")) 
+			{
 			
-			filePath = mydata.c_str();
-			filePath = filePath.Mid(1);
-			SendMessage(START_MSG, (WPARAM) TRUE, (LPARAM) &filePath);
+				filePath = mydata.c_str();
+				filePath = filePath.Mid(1);
+				SendMessage(START_MSG, (WPARAM) TRUE, (LPARAM) &filePath);
 
+			}
+			else if (mydata == _T("stop"))
+			{
+				SendMessage(STOP_MSG, (WPARAM) TRUE);
+			} 
+			else if (mydata == _T("halt"))
+			{
+				SendMessage(HALT_MSG, (WPARAM) TRUE);
+			}
+			else if (mydata == _T("INIT")) 
+			{
+				SendMessage(INIT_MSG, (WPARAM) TRUE);
+			}
 		}
-		else if (mydata == _T("stop"))
-		{
-			SendMessage(STOP_MSG, (WPARAM) TRUE);
-		} 
-		else if (mydata == _T("halt"))
-		{
-			SendMessage(HALT_MSG, (WPARAM) TRUE);
-		}
-		else if (mydata == _T("INIT")) 
-		{
-			SendMessage(INIT_MSG, (WPARAM) TRUE);
-		}
-
 	}
 
-	mydata;
+	// mydata;
 
 	
 	// Terminate the thread
@@ -1591,9 +1604,10 @@ UINT CMXPTinyDlg::CheckForThreadReset() {
 		toggle = false;
 		ReleaseMutex(ghMutex);
 		AfxEndThread(0);
+		return(1);
 	}
 	else {
 		ReleaseMutex(ghMutex);
 	}
-
+	return 0;
 }

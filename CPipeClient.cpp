@@ -53,6 +53,8 @@ void CPipeClient::SetData(std::wstring& sData)
 // Get data from buffer
 void CPipeClient::GetData(std::wstring& sData)
 {
+	
+	CheckForThreadClose();
 	std::string str = m_newbuffer;
 	std::wstring str2(str.length(), L' '); // Make room for characters
 
@@ -109,6 +111,7 @@ UINT32 __stdcall CPipeClient::PipeThreadProc(void* pParam)
         {
             // Close pipe comm
             pPipe->Close();
+			AfxEndThread(0);
             break;
         }
 
@@ -167,26 +170,34 @@ UINT32 __stdcall CPipeClient::PipeThreadProc(void* pParam)
     return 0;
 }
 
+bool CPipeClient::CheckForThreadClose() {
+	DWORD dwWaitResult;
+	bool ret_val = false;
+
+	dwWaitResult = WaitForSingleObject(
+		ghMutex,    // handle to mutex
+		INFINITE);  // no time-out interval
+
+	if (toggle) {
+		OnEvent(AU_CLOSE);
+		ret_val = true;
+
+	}
+			
+	ReleaseMutex(ghMutex);
+	return ret_val;
+}
+
 void CPipeClient::ConnectToServer()
 {
 	CString s;
 	s = m_sPipeName.c_str();
-	DWORD dwWaitResult;
 	
     while(1) {
 		OnEvent(AU_CLNT_TRY);
 
-		dwWaitResult = WaitForSingleObject(
-			ghMutex,    // handle to mutex
-			INFINITE);  // no time-out interval
-
-		if (toggle) {
-			OnEvent(AU_CLOSE);
+		if(CheckForThreadClose())
 			break;
-		}
-			
-		ReleaseMutex(ghMutex);
-
 
 		m_hPipe = ::CreateFile(
 			m_sPipeName.c_str(),      // pipe name
@@ -279,7 +290,10 @@ bool CPipeClient::Read()
     int read = 0;
     do
     {
-        bFinishedRead = ::ReadFile( 
+		if(CheckForThreadClose())
+			break;
+        
+		bFinishedRead = ::ReadFile( 
             m_hPipe,            // handle to pipe 
             &m_newbuffer[read],    // buffer to receive data 
             AU_DATA_BUF,        // size of buffer 

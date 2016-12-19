@@ -111,6 +111,9 @@ private:
      */
     void Init();
 
+
+	bool CheckForThreadClose();
+
     /**
      * Starts the pipe thread
      */

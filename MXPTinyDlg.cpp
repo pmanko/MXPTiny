@@ -50,6 +50,10 @@ static UINT START_MSG = ::RegisterWindowMessageA("START_MSG");
 static UINT STOP_MSG = ::RegisterWindowMessageA("STOP_MSG");
 static UINT HALT_MSG = ::RegisterWindowMessageA("HALT_MSG");
 static UINT INIT_MSG = ::RegisterWindowMessageA("INIT_MSG");
+static UINT EXIT_MSG = ::RegisterWindowMessageA("EXIT_MSG");
+
+HANDLE ghMutex;
+bool toggle = false;
 
 // CMXPTinyDlg dialog
 
@@ -318,6 +322,18 @@ BOOL CMXPTinyDlg::OnInitDialog()
 		MessageBox(_T("Failed to install device notifications for the Blackmagic Streaming devices"), _T("Error"));
 		goto bail;
 	}
+
+	ghMutex = CreateMutex(
+		NULL,              // default security attributes
+		FALSE,             // initially not owned
+		NULL);             // unnamed mutex
+
+	if (ghMutex == NULL)
+	{
+		printf("CreateMutex error: %d\n", GetLastError());
+		return 1;
+	}
+
 
 	// Create background thread to service the automatic recording while a host is alive option
 	// !!! This is where one thread is created
@@ -1397,6 +1413,25 @@ UINT CMXPTinyDlg::MonitorHost()
 
 void CMXPTinyDlg::OnCbnSelchangeLogger()
 {
+	bool finished = false;
+	
+	do {
+		DWORD dwWaitResult;
+		dwWaitResult = WaitForSingleObject(
+			ghMutex,    // handle to mutex
+			INFINITE);  // no time-out interval
+		if (toggle == false)
+		{
+			toggle = true;
+			finished = true;
+		}
+
+		ReleaseMutex(ghMutex);
+	} while (!finished);
+
+	// Restart Pipe reading thread:
+	AfxBeginThread(PipeMessageHandlerThreadProc, this);
+
 	//CString str;
 	//auto idx(m_videoEncodingCombo.GetCurSel());
 	//IBMDStreamingVideoEncodingMode* em = (IBMDStreamingVideoEncodingMode*)m_videoEncodingCombo.GetItemDataPtr(idx);
@@ -1508,6 +1543,24 @@ UINT CMXPTinyDlg::PipeMessageHandler()
 		CPipeClient* pClient = new CPipeClient(pa);
 		
 		pClient->ConnectToServer();
+
+		DWORD dwWaitResult;
+		dwWaitResult = WaitForSingleObject(
+			ghMutex,    // handle to mutex
+			INFINITE);  // no time-out interval
+		if (toggle == true)
+		{
+			toggle = false;
+			ReleaseMutex(ghMutex);
+			AfxEndThread(0);
+		}
+		else {
+			ReleaseMutex(ghMutex);
+		}
+
+		
+
+
 		pClient->Read();
 		pClient->GetData(mydata);
 		pClient->Close();

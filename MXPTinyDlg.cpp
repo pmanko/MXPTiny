@@ -116,7 +116,7 @@ CMXPTinyDlg::CMXPTinyDlg(CWnd* pParent /*=NULL*/)
 	TCHAR pf[MAX_PATH];
 
 	// Set angle port number
-	anglePort = _tstoi(theApp.m_lpCmdLine);
+	anglePort = 4444; // _tstoi(theApp.m_lpCmdLine);
 
 	if(!GetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), _T("bitrate"), (BYTE *)&m_bitrate, sizeof(m_bitrate))) 
 		m_bitrate=20000;
@@ -483,7 +483,7 @@ void CMXPTinyDlg::OnCbnSelchangeComboEncodingPreset()
 	CString fmt=frameRate2String(rate);
 	str.Format(_T("Input: Source: X:%d,Y:%d->%dx%d Dest: %dx%d Format: %s"), em->GetSourcePositionX(), em->GetSourcePositionY(), em->GetSourceWidth(), em->GetSourceHeight(), em->GetDestWidth(), em->GetDestHeight(), fmt);
 
-	m_encoding_static.SetWindowText(str);
+	//m_encoding_static.SetWindowText(str);
 	
 	m_presetIndex = idx;
 	SetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), REG_DWORD, _T("presetIndex"), (BYTE *)&m_presetIndex, sizeof(m_presetIndex));
@@ -496,7 +496,7 @@ void CMXPTinyDlg::StopPreview()
 	
 	str.Format(_T("Port number: %d"), anglePort);
 
-	m_encoding_static.SetWindowText(str);
+	//m_encoding_static.SetWindowText(str);
 	m_playing = false;
 	m_recording = false;
 
@@ -1052,7 +1052,7 @@ void CMXPTinyDlg::OnBnClickedButtonFolder()
 	// We should save this code to update file name info when we get it using the pipe.
 	CString str;
 	str.Format(_T("Selected file: % 26s"), m_filename);
-	m_encoding_static.SetWindowText(str);
+	//m_encoding_static.SetWindowText(str);
 	
 	m_filename.ReleaseBuffer();
 }
@@ -1099,7 +1099,7 @@ void CMXPTinyDlg::OnBnClickedButtonPrevcfg()
 		m_vlcexe.ReleaseBuffer();
 		CString str;
 		str.Format(_T("Command line: % 26s"), m_vlcexe);
-		m_encoding_static.SetWindowText(str);
+		//m_encoding_static.SetWindowText(str);
 	}
 }
 
@@ -1171,10 +1171,20 @@ LRESULT CMXPTinyDlg::OnStopMsg(WPARAM wParam, LPARAM lParam)
 	OnBnClickedButtonRecord();
 	CString str;
 
+	
+	if(!m_recording) {
+		// Something's wrong
+		str.Format(_T("Error! Recieved start message, but already recording"));
+
+		m_encoding_static.SetWindowText(str);
+	}
+
+
+
 	// Add info about saved mp4 file name?
 	str.Format(_T("Finished recording!"));
 
-	m_encoding_static.SetWindowText(str);
+	//m_encoding_static.SetWindowText(str);
 	return 0;
 }
 
@@ -1186,13 +1196,21 @@ LRESULT CMXPTinyDlg::OnStartMsg(WPARAM wParam, LPARAM lParam)
 	passedFn->Replace(_T(".avi"), _T(".ts"));
 	passedFn->Replace(_T(".AVI"), _T(".ts"));
 
+	if(m_recording) {
+		// Something's wrong
+		str.Format(_T("Error! Recieved start message, but already recording"));
+
+		m_encoding_static.SetWindowText(str);
+	}
+
+
 	// passedFn->Replace(_T("c:\\"), _T("c:\\pwmTEMP\\"));
 
 	m_filename.Format(_T("%s"), *passedFn);
 
 	str.Format(_T("Recording to file: %s"), *passedFn);
 
-	m_encoding_static.SetWindowText(str);
+	//m_encoding_static.SetWindowText(str);
 
 	OnBnClickedButtonRecord();
 
@@ -1204,7 +1222,7 @@ LRESULT CMXPTinyDlg::OnHaltMsg(WPARAM wParam, LPARAM lParam)
 	CString str;
 	str.Format(_T("Disconnected from Logger"));
 
-	m_encoding_static.SetWindowText(str);
+	//m_encoding_static.SetWindowText(str);
 	OnBnClickedOk();
 	return 0;
 }
@@ -1214,7 +1232,7 @@ LRESULT CMXPTinyDlg::OnInitMsg(WPARAM wParam, LPARAM lParam)
 	CString str;
 	str.Format(_T("Connected to Logger on Port: %d"), anglePort);
 
-	m_encoding_static.SetWindowText(str);
+	//m_encoding_static.SetWindowText(str);
 
 	return 0;
 }

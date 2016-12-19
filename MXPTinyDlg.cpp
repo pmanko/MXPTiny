@@ -116,7 +116,7 @@ CMXPTinyDlg::CMXPTinyDlg(CWnd* pParent /*=NULL*/)
 	TCHAR pf[MAX_PATH];
 
 	// Set angle port number
-	anglePort = 4444; //_tstoi(theApp.m_lpCmdLine);
+	anglePort = _tstoi(theApp.m_lpCmdLine);
 
 	if(!GetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), _T("bitrate"), (BYTE *)&m_bitrate, sizeof(m_bitrate))) 
 		m_bitrate=20000;

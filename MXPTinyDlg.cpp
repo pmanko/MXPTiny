@@ -324,7 +324,7 @@ BOOL CMXPTinyDlg::OnInitDialog()
 	AfxBeginThread(MonitorHostThreadProc, this);
 	
 	// Pipe reading thread:
-	AfxBeginThread(PipeMessageHandlerThreadProc, this);
+	pipeThread = AfxBeginThread(PipeMessageHandlerThreadProc, this);
 
 
 	// return TRUE unless you set the focus to a control
@@ -1395,6 +1395,12 @@ void CMXPTinyDlg::OnCbnSelchangeLogger()
 
 	//// SetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), REG_DWORD, _T("presetIndex"), (BYTE *)&m_presetIndex, sizeof(m_presetIndex));
 	//SetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), REG_DWORD, _T("logger"), (BYTE *)&m_logger, sizeof(m_logger));
+
+	// Pipe reading thread:
+	TerminateThread(pipeThread, 0);
+
+	pipeThread = AfxBeginThread(PipeMessageHandlerThreadProc, this);
+
 }
 
 

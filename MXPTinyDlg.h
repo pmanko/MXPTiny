@@ -115,7 +115,7 @@ private:
 	void updBitrate();
 	void activate_device(int i);
 	int browseFolder(char *pszBuffer);
-
+	HANDLE pipeThread;
 public:
 	// IUknown
 	// We need to correctly implement QueryInterface, but not the AddRef/Release

@@ -1410,7 +1410,7 @@ UINT CMXPTinyDlg::PipeMessageHandler()
 	TCHAR  chBuf[BUFSIZE];
 	BOOL   fSuccess = FALSE;
 	DWORD  cbRead, cbToWrite, cbWritten, dwMode;
-
+	CString myLogger;
 
 	CString log;
 	CString pipeAddress;
@@ -1432,6 +1432,8 @@ UINT CMXPTinyDlg::PipeMessageHandler()
 	std::wstring flag;
 	CString filePath;
 
+	m_logger.GetWindowText(log);
+	myLogger.Format(_T("%s"), log);
 
 	while(1) {
 
@@ -1455,26 +1457,33 @@ UINT CMXPTinyDlg::PipeMessageHandler()
 
 		flag = mydata.substr(0,1);
 
-		if(flag == _T("P")) 
-		{
-			
-			filePath = mydata.c_str();
-			filePath = filePath.Mid(1);
-			SendMessage(START_MSG, (WPARAM) TRUE, (LPARAM) &filePath);
+
+		m_logger.GetWindowText(log);
+		if (myLogger == log) {
+			if (flag == _T("P"))
+			{
+				filePath = mydata.c_str();
+				filePath = filePath.Mid(1);
+				SendMessage(START_MSG, (WPARAM)TRUE, (LPARAM)&filePath);
+			}
+			else if (mydata == _T("stop"))
+			{
+				SendMessage(STOP_MSG, (WPARAM)TRUE);
+			}
+			else if (mydata == _T("halt"))
+			{
+				SendMessage(HALT_MSG, (WPARAM)TRUE);
+			}
+			else if (mydata == _T("INIT"))
+			{
+				SendMessage(INIT_MSG, (WPARAM)TRUE);
+			}
+		}
+		else {
+			break;
 
 		}
-		else if (mydata == _T("stop"))
-		{
-			SendMessage(STOP_MSG, (WPARAM) TRUE);
-		} 
-		else if (mydata == _T("halt"))
-		{
-			SendMessage(HALT_MSG, (WPARAM) TRUE);
-		}
-		else if (mydata == _T("INIT")) 
-		{
-			SendMessage(INIT_MSG, (WPARAM) TRUE);
-		}
+
 
 	}
 

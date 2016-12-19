@@ -34,16 +34,22 @@
 #pragma comment(lib, "comsupp.lib")
 
 #include "DeckLinkAPI_h.h"
+#include "CPipeClient.h"
+#include "CPipeServer.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
 
-#define INFO_BUFFER_SIZE 15
-#define BUFSIZE 15
+#define INFO_BUFFER_SIZE 32767
+#define BUFSIZE 512
 
 
 static UINT SYNC_STATUS = ::RegisterWindowMessageA("SYNC_STATUS");
+static UINT START_MSG = ::RegisterWindowMessageA("START_MSG");
+static UINT STOP_MSG = ::RegisterWindowMessageA("STOP_MSG");
+static UINT HALT_MSG = ::RegisterWindowMessageA("HALT_MSG");
+static UINT INIT_MSG = ::RegisterWindowMessageA("INIT_MSG");
 
 // CMXPTinyDlg dialog
 
@@ -87,7 +93,6 @@ CMXPTinyDlg::CMXPTinyDlg(CWnd* pParent /*=NULL*/)
 	: CDialog(CMXPTinyDlg::IDD, pParent)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
-
 	m_streamingDiscovery = NULL;
 	m_streamingDevice = NULL;
 	m_streamingDeviceInput = NULL;
@@ -97,7 +102,7 @@ CMXPTinyDlg::CMXPTinyDlg(CWnd* pParent /*=NULL*/)
 	m_recording = false;
 	m_deviceMode = bmdStreamingDeviceUnknown;
 	m_autorec = false;
-	m_autopreview = false;
+	m_autopreview = true;
 	m_timestampSuffix = false;
 	m_syncToHost = false;
 	m_failCount = 0;
@@ -111,7 +116,7 @@ CMXPTinyDlg::CMXPTinyDlg(CWnd* pParent /*=NULL*/)
 	TCHAR pf[MAX_PATH];
 
 	// Set angle port number
-	anglePort = 4444; // _tstoi(theApp.m_lpCmdLine);
+	anglePort = 4444; //_tstoi(theApp.m_lpCmdLine);
 
 	if(!GetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), _T("bitrate"), (BYTE *)&m_bitrate, sizeof(m_bitrate))) 
 		m_bitrate=20000;
@@ -156,7 +161,7 @@ CMXPTinyDlg::CMXPTinyDlg(CWnd* pParent /*=NULL*/)
 
 	GetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), _T("autorec"), (BYTE *)&m_autorec, sizeof(m_autorec));
 	
-	GetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), _T("autopreview"), (BYTE *)&m_autopreview, sizeof(m_autopreview));
+	//GetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), _T("autopreview"), (BYTE *)&m_autopreview, sizeof(m_autopreview));
 	
 	GetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), _T("timestampSuffix"), (BYTE *)&m_timestampSuffix, sizeof(m_timestampSuffix));
 	
@@ -250,6 +255,10 @@ BEGIN_MESSAGE_MAP(CMXPTinyDlg, CDialog)
 	ON_EN_CHANGE(IDC_SYNC_HOST, &CMXPTinyDlg::OnEnChangeSyncHost)
 	// Registred message?? is this thread to thread communication?
 	ON_REGISTERED_MESSAGE(SYNC_STATUS, &CMXPTinyDlg::OnSyncStatus)
+	ON_REGISTERED_MESSAGE(START_MSG, &CMXPTinyDlg::OnStartMsg)
+	ON_REGISTERED_MESSAGE(STOP_MSG, &CMXPTinyDlg::OnStopMsg)
+	ON_REGISTERED_MESSAGE(HALT_MSG, &CMXPTinyDlg::OnHaltMsg)
+	ON_REGISTERED_MESSAGE(INIT_MSG, &CMXPTinyDlg::OnInitMsg)
 	ON_CBN_SELCHANGE(IDC_LOGGER, &CMXPTinyDlg::OnCbnSelchangeLogger)
 	ON_BN_CLICKED(IDC_BUTTON_ADD_LOGGER, &CMXPTinyDlg::OnBnClickedButtonAddLogger)
 END_MESSAGE_MAP()
@@ -529,14 +538,14 @@ void CMXPTinyDlg::UpdateUIForModeChanges()
 	m_bitrate_slider.EnableWindow(enablePresets);
 	m_prevcfg_button.EnableWindow(enablePresets);
 	m_folder_button.EnableWindow(!m_recording);
-	m_record_button.EnableWindow(!enablePresets);
+	m_record_button.EnableWindow(TRUE);
 	m_button_customize.EnableWindow(enablePresets);
 	
 	bool enableStartStop = (m_deviceMode == bmdStreamingDeviceIdle || m_deviceMode == bmdStreamingDeviceEncoding);
 	m_startButton.EnableWindow(enableStartStop);
 
 	bool start = /*!m_playing;*/ m_deviceMode != bmdStreamingDeviceEncoding;
-	m_startButton.SetWindowText(start ? _T("Preview") : _T("Stop"));
+	m_startButton.SetWindowText(start ? _T("Preview") : _T("Stop Preview"));
 	if (m_deviceMode == bmdStreamingDeviceEncoding)
 	{
 //		if (m_inputMode != bmdModeUnknown)
@@ -900,7 +909,7 @@ HRESULT CMXPTinyDlg::MPEG2TSPacketArrived(IBMDStreamingMPEG2TSPacket* mpeg2TSPac
 				GetFileSizeEx( m_fh, &FileSize);
 				str.Format(_T("%s    -    Recording (kB): % 6llu %s"), str, FileSize.QuadPart>>10, rec_error?_T("- ERROR WRITING !!!"):_T(""));
 			}
-			m_encoding_static.SetWindowText(str);
+			// m_encoding_static.SetWindowText(str);
 		}
 	}
 	return S_OK;
@@ -957,6 +966,33 @@ void CMXPTinyDlg::OnBnClickedButtonRecord()
 		}		
 		m_record_button.SetWindowTextW(_T("Record"));
 		m_recording=false;
+	    STARTUPINFOW si;
+		PROCESS_INFORMATION pi;
+
+		memset(&si, 0, sizeof(si));
+		si.cb = sizeof(si);
+		ZeroMemory(&pi, sizeof(pi));
+		CString fMp4 = m_filename.Left(m_filename.GetLength() - 3);
+		CString fAvi = m_filename.Left(m_filename.GetLength() - 3);
+		fMp4 += TEXT(".mp4");
+		fAvi += TEXT(".avi");
+		CString str = TEXT("c:\\bats99\\ffmpeg2 -i " + m_filename + " -bsf:a aac_adtstoasc -acodec copy -vcodec copy " + fMp4 + " -y");
+		TCHAR cmd[1024];
+		_tcscpy(cmd, str.GetBuffer(1024));
+		str.ReleaseBuffer();
+		if (CreateProcess(NULL, cmd, NULL, NULL, FALSE, CREATE_NO_WINDOW, NULL, NULL, &si, &pi))
+		{
+			WaitForSingleObject(pi.hProcess, INFINITE);
+			CloseHandle(pi.hProcess);
+			CloseHandle(pi.hThread);
+		}
+		CFileStatus status;
+		if (CFile::GetStatus(fAvi.GetString(), status) != 0) {
+			CFile::Remove(fAvi.GetString());
+		}
+	    CFile::Rename(fMp4.GetString(), fAvi.GetString());
+
+		CFile::Remove(m_filename.GetString());
 	} else {
 		// Should never happen
 		if(!m_filename.IsEmpty()) {
@@ -1130,9 +1166,62 @@ void CMXPTinyDlg::OnEnChangeSyncHost()
 	m_syncHost.ReleaseBuffer();
 }
 
+LRESULT CMXPTinyDlg::OnStopMsg(WPARAM wParam, LPARAM lParam) 
+{
+	OnBnClickedButtonRecord();
+	CString str;
+
+	// Add info about saved mp4 file name?
+	str.Format(_T("Finished recording!"));
+
+	m_encoding_static.SetWindowText(str);
+	return 0;
+}
+
+LRESULT CMXPTinyDlg::OnStartMsg(WPARAM wParam, LPARAM lParam) 
+{
+	CString* passedFn = (CString*)lParam;
+	CString str;
+
+	passedFn->Replace(_T(".avi"), _T(".ts"));
+	passedFn->Replace(_T(".AVI"), _T(".ts"));
+
+	// passedFn->Replace(_T("c:\\"), _T("c:\\pwmTEMP\\"));
+
+	m_filename.Format(_T("%s"), *passedFn);
+
+	str.Format(_T("Recording to file: %s"), *passedFn);
+
+	m_encoding_static.SetWindowText(str);
+
+	OnBnClickedButtonRecord();
+
+	return 0;
+}
+
+LRESULT CMXPTinyDlg::OnHaltMsg(WPARAM wParam, LPARAM lParam) 
+{
+	CString str;
+	str.Format(_T("Disconnected from Logger"));
+
+	m_encoding_static.SetWindowText(str);
+	OnBnClickedOk();
+	return 0;
+}
+
+LRESULT CMXPTinyDlg::OnInitMsg(WPARAM wParam, LPARAM lParam) 
+{
+	CString str;
+	str.Format(_T("Connected to Logger on Port: %d"), anglePort);
+
+	m_encoding_static.SetWindowText(str);
+
+	return 0;
+}
+
 LRESULT CMXPTinyDlg::OnSyncStatus(WPARAM wParam, LPARAM lParam)
 {
-	// Preview/Sotp button must be enabled for this to be available.
+	// Preview/Stop button must be enabled for this to be available.
 	if (m_startButton.IsWindowEnabled())
 	{
 		if ((BOOL)wParam)
@@ -1359,8 +1448,6 @@ void CMXPTinyDlg::OnBnClickedButtonAddLogger()
 UINT CMXPTinyDlg::PipeMessageHandler()
 {
 	HANDLE hPipe;
-	HANDLE hPipe2;
-
 	TCHAR  chBuf[BUFSIZE];
 	BOOL   fSuccess = FALSE;
 	DWORD  cbRead, cbToWrite, cbWritten, dwMode;
@@ -1389,160 +1476,48 @@ UINT CMXPTinyDlg::PipeMessageHandler()
 	GetComputerName(infoBuf, &bufCharCount);
 
 	pipeAddress.Format(_T("\\\\%s\\pipe\\%s%d"), log, infoBuf, anglePort);
+	std::wstring pa = pipeAddress;
+
+	CPipeClient* pClient = new CPipeClient(pa);
+	std::wstring mydata;
+	std::wstring flag;
+	CString filePath;
+
 
 	while(1) {
-		// Try to open a named pipe; wait for it, if necessary. 
-		while (1)
+		pClient->ConnectToServer();
+		pClient->Read();
+		pClient->GetData(mydata);
+		pClient->Close();
+
+		flag = mydata.substr(0,1);
+
+		if(flag == _T("P")) 
 		{
-		  //fSuccess = CallNamedPipe( 
-				//pipeAddress,        // pipe name 
-				//NULL,           // message to server 
-		  //      NULL, // message length 
-				//chBuf,              // buffer to receive reply 
-				//BUFSIZE*sizeof(TCHAR),  // size of read buffer 
-				//&cbRead,                // number of bytes read 
-				//NMPWAIT_WAIT_FOREVER);                
-			hPipe = CreateFile(
-				pipeAddress,   // pipe name 
-				GENERIC_READ,   // read and write access,
-				0,              // no sharing 
-				NULL,           // default security attributes
-				OPEN_EXISTING,  // opens existing pipe 
-				0,              // default attributes 
-				NULL);          // no template file 
-		
-			// Break if the pipe handle is valid. 
-			if (hPipe != INVALID_HANDLE_VALUE)
-				break;
+			
+			filePath = mydata.c_str();
+			filePath = filePath.Mid(1);
+			SendMessage(START_MSG, (WPARAM) TRUE, (LPARAM) &filePath);
 
-			// Exit if an error other than ERROR_PIPE_BUSY occurs. 
-			if (GetLastError() != ERROR_PIPE_BUSY)
-			{
-				_tprintf(TEXT("Could not open pipe. GLE=%d\n"), GetLastError());
-				// return -1;
-			}
-
-			// All pipe instances are busy, so wait for 2 seconds. 
-			if (!WaitNamedPipe(pipeAddress, 2000))
-			{
-				printf("Could not open pipe: 2 second wait timed out.");
-				// return -1;
-			}
+		}
+		else if (mydata == _T("stop"))
+		{
+			SendMessage(STOP_MSG, (WPARAM) TRUE);
+		} 
+		else if (mydata == _T("halt"))
+		{
+			SendMessage(HALT_MSG, (WPARAM) TRUE);
+		}
+		else if (mydata == _T("INIT")) 
+		{
+			SendMessage(INIT_MSG, (WPARAM) TRUE);
 		}
 
-		/*fSuccess = CloseHandle(
-			hPipe);*/
-		if (hPipe != INVALID_HANDLE_VALUE)
-			1==1;
-
-		// The pipe connected; change to message-read mode. 
-		while (1)
-		{
-			hPipe2 = CreateFile(
-				pipeAddress,   // pipe name 
-				GENERIC_READ,   // read and write access,
-				0,              // no sharing 
-				NULL,           // default security attributes
-				OPEN_EXISTING,  // opens existing pipe 
-				0,              // default attributes 
-				NULL);          // no template file 
-		
-			// Break if the pipe handle is valid. 
-			if (hPipe2 != INVALID_HANDLE_VALUE)
-				break;
-
-			// Exit if an error other than ERROR_PIPE_BUSY occurs. 
-			if (GetLastError() != ERROR_PIPE_BUSY)
-			{
-				_tprintf(TEXT("Could not open pipe. GLE=%d\n"), GetLastError());
-				// return -1;
-			}
-
-			// All pipe instances are busy, so wait for 2 seconds. 
-			if (!WaitNamedPipe(pipeAddress, 2000))
-			{
-				printf("Could not open pipe: 2 second wait timed out.");
-				// return -1;
-			}
-		}
-
-	dwMode = PIPE_READMODE_BYTE;
-	fSuccess = SetNamedPipeHandleState(
-		hPipe2,    // pipe handle 
-		&dwMode,  // new pipe mode 
-		NULL,     // don't set maximum bytes 
-		NULL);    // don't set maximum time 
-	
-	if (!fSuccess)
-	{
-		_tprintf(TEXT("SetNamedPipeHandleState failed. GLE=%d\n"), GetLastError());
-		DWORD errorMessageID = ::GetLastError();
-	
-		LPSTR messageBuffer = nullptr;
-		size_t size = FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-									 NULL, errorMessageID, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR)&messageBuffer, 0, NULL);
-
-		std::string message(messageBuffer, size);
-
-		//Free the buffer.
-		LocalFree(messageBuffer);
-
-		return -1;
 	}
 
-		do
-		{
-			// Read from the pipe. 
-			fSuccess = ReadFile(
-				hPipe2,    // pipe handle 
-				chBuf,    // buffer to receive reply 
-				BUFSIZE,  // size of buffer 
-				&cbRead,  // number of bytes read 
-				NULL);    // not overlapped 
+	mydata;
 
-			if (!fSuccess && GetLastError() != ERROR_MORE_DATA)
-				break;
-
-			readMsg.Format(_T("%s"), chBuf);
-
-			if (readMsg.GetAt(0) == 'P')
-			{
-				m_filename = readMsg.Mid(1);
-			}
-			else if (readMsg.Mid(0, 4) == "stop")
-			{
-				// Stop Recording!
-			}
-			else if (readMsg.Mid(0,4) == "halt")
-			{
-				// Exit thread!
-				::AfxEndThread(0, FALSE);
-				return 0L;
-			}
-
-		} while (1);  // repeat loop if ERROR_MORE_DATA 
-
-		if (!fSuccess)
-		{
-			_tprintf(TEXT("SetNamedPipeHandleState failed. GLE=%d\n"), GetLastError());
-			DWORD errorMessageID = ::GetLastError();
 	
-			LPSTR messageBuffer = nullptr;
-			size_t size = FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-										 NULL, errorMessageID, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR)&messageBuffer, 0, NULL);
-
-			std::string message(messageBuffer, size);
-
-			//Free the buffer.
-			LocalFree(messageBuffer);
-
-			return -1;
-		}
-
-		fSuccess = CloseHandle(
-			hPipe);
-	}
-
 	// Terminate the thread
 	return 0L;
 }

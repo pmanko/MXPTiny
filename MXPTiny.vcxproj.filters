@@ -36,6 +36,12 @@
     <ClCompile Include="EncodingPresetSetup.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="CPipeServer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="CPipeClient.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Resource.h">
@@ -60,6 +66,15 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="EncodingPresetSetup.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="CPipeClient.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="PipeConst.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="CPipeServer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

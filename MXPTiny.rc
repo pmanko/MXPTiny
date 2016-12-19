@@ -121,7 +121,7 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 IDD_MXPTINY_DIALOG DIALOGEX 0, 0, 322, 168
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_VISIBLE | WS_CAPTION | WS_SYSMENU
 EXSTYLE WS_EX_APPWINDOW
-CAPTION "MXPTiny - Version 0.9.1.1-sync - © BayCom GmbH"
+CAPTION "Sydex Blackmagic Capture"
 FONT 8, "MS Shell Dlg", 0, 0, 0x1
 BEGIN
     GROUPBOX        "No device detected",IDC_STATIC_CONFIGBOX,7,7,308,154
@@ -236,7 +236,6 @@ END
 // remains consistent on all systems.
 IDR_MAINFRAME           ICON                    "res\\MXPTiny.ico"
 
-
 /////////////////////////////////////////////////////////////////////////////
 //
 // Version
@@ -281,14 +280,14 @@ END
 // AFX_DIALOG_LAYOUT
 //
 
-IDD_MXPTINY_DIALOG AFX_DIALOG_LAYOUT
+IDD_MXPTINY_DIALOG AFX_DIALOG_LAYOUT 
 BEGIN
-    0
+    0x0000
 END
 
-IDD_LOGGER_DIALOG AFX_DIALOG_LAYOUT
+IDD_LOGGER_DIALOG AFX_DIALOG_LAYOUT 
 BEGIN
-    0
+    0x0000
 END
 
 #endif    // English (United States) resources

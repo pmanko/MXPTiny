@@ -483,7 +483,7 @@ void CMXPTinyDlg::OnCbnSelchangeComboEncodingPreset()
 	CString fmt=frameRate2String(rate);
 	str.Format(_T("Input: Source: X:%d,Y:%d->%dx%d Dest: %dx%d Format: %s"), em->GetSourcePositionX(), em->GetSourcePositionY(), em->GetSourceWidth(), em->GetSourceHeight(), em->GetDestWidth(), em->GetDestHeight(), fmt);
 
-	m_encoding_static.SetWindowText(str);
+	// m_encoding_static.SetWindowText(str);
 	
 	m_presetIndex = idx;
 	SetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), REG_DWORD, _T("presetIndex"), (BYTE *)&m_presetIndex, sizeof(m_presetIndex));
@@ -606,7 +606,7 @@ void CMXPTinyDlg::UpdateUIForNewDevice()
 
 			CString str;
 			str.Format(_T("Input Mode: % 26s"), modeNameCString);
-			m_encoding_static.SetWindowText(str);
+			// m_encoding_static.SetWindowText(str);
 			break;
 		}
 		inputMode->Release();
@@ -955,6 +955,16 @@ HRESULT CMXPTinyDlg::H264VideoInputModeChanged(void)
  */
 void CMXPTinyDlg::OnBnClickedButtonRecord()
 {
+	if(m_recording){
+		m_record_button.SetWindowTextW(_T("Record"));
+		m_recording=false;
+	}
+	else {
+		m_record_button.SetWindowTextW(_T("Recording..."));
+		m_recording=true;
+	}
+	return;
+
 	if (m_streamingDevice == NULL)
 	return;
 
@@ -1052,7 +1062,7 @@ void CMXPTinyDlg::OnBnClickedButtonFolder()
 	// We should save this code to update file name info when we get it using the pipe.
 	CString str;
 	str.Format(_T("Selected file: % 26s"), m_filename);
-	m_encoding_static.SetWindowText(str);
+	// m_encoding_static.SetWindowText(str);
 	
 	m_filename.ReleaseBuffer();
 }
@@ -1174,7 +1184,7 @@ LRESULT CMXPTinyDlg::OnStopMsg(WPARAM wParam, LPARAM lParam)
 	// Add info about saved mp4 file name?
 	str.Format(_T("Finished recording!"));
 
-	m_encoding_static.SetWindowText(str);
+	// m_encoding_static.SetWindowText(str);
 	return 0;
 }
 
@@ -1192,7 +1202,7 @@ LRESULT CMXPTinyDlg::OnStartMsg(WPARAM wParam, LPARAM lParam)
 
 	str.Format(_T("Recording to file: %s"), *passedFn);
 
-	m_encoding_static.SetWindowText(str);
+	// m_encoding_static.SetWindowText(str);
 
 	OnBnClickedButtonRecord();
 
@@ -1396,6 +1406,9 @@ void CMXPTinyDlg::OnCbnSelchangeLogger()
 	//// SetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), REG_DWORD, _T("presetIndex"), (BYTE *)&m_presetIndex, sizeof(m_presetIndex));
 	//SetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), REG_DWORD, _T("logger"), (BYTE *)&m_logger, sizeof(m_logger));
 
+	if(m_recording)
+		OnBnClickedButtonRecord();
+
 	// Pipe reading thread:
 	TerminateThread(pipeThread, 0);
 
@@ -1460,6 +1473,7 @@ UINT CMXPTinyDlg::PipeMessageHandler()
 
 
 	CString log;
+	CString myLogger;
 	CString pipeAddress;
 	CString readMsg;
 
@@ -1475,6 +1489,7 @@ UINT CMXPTinyDlg::PipeMessageHandler()
 	//::WaitForSingleObject(pEvent->m_hObject, INFINITE);
 
 	m_logger.GetWindowText(log);
+	myLogger.Format(_T("%s"), log);
 
 	if (log == "My Computer")
 		log = ".";
@@ -1482,6 +1497,7 @@ UINT CMXPTinyDlg::PipeMessageHandler()
 	GetComputerName(infoBuf, &bufCharCount);
 
 	pipeAddress.Format(_T("\\\\%s\\pipe\\%s%d"), log, infoBuf, anglePort);
+	m_encoding_static.SetWindowText(pipeAddress);
 	std::wstring pa = pipeAddress;
 
 	CPipeClient* pClient = new CPipeClient(pa);
@@ -1498,27 +1514,31 @@ UINT CMXPTinyDlg::PipeMessageHandler()
 
 		flag = mydata.substr(0,1);
 
-		if(flag == _T("P")) 
+		m_logger.GetWindowText(log);
+
+		if(myLogger == log)
 		{
+			if(flag == _T("P")) 
+			{
 			
-			filePath = mydata.c_str();
-			filePath = filePath.Mid(1);
-			SendMessage(START_MSG, (WPARAM) TRUE, (LPARAM) &filePath);
+				filePath = mydata.c_str();
+				filePath = filePath.Mid(1);
+				SendMessage(START_MSG, (WPARAM) TRUE, (LPARAM) &filePath);
 
+			}
+			else if (mydata == _T("stop"))
+			{
+				SendMessage(STOP_MSG, (WPARAM) TRUE);
+			} 
+			else if (mydata == _T("halt"))
+			{
+				SendMessage(HALT_MSG, (WPARAM) TRUE);
+			}
+			else if (mydata == _T("INIT")) 
+			{
+				SendMessage(INIT_MSG, (WPARAM) TRUE);
+			}
 		}
-		else if (mydata == _T("stop"))
-		{
-			SendMessage(STOP_MSG, (WPARAM) TRUE);
-		} 
-		else if (mydata == _T("halt"))
-		{
-			SendMessage(HALT_MSG, (WPARAM) TRUE);
-		}
-		else if (mydata == _T("INIT")) 
-		{
-			SendMessage(INIT_MSG, (WPARAM) TRUE);
-		}
-
 	}
 
 	mydata;

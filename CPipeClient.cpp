@@ -171,9 +171,23 @@ void CPipeClient::ConnectToServer()
 {
 	CString s;
 	s = m_sPipeName.c_str();
+	DWORD dwWaitResult;
 	
     while(1) {
 		OnEvent(AU_CLNT_TRY);
+
+		dwWaitResult = WaitForSingleObject(
+			ghMutex,    // handle to mutex
+			INFINITE);  // no time-out interval
+
+		if (toggle) {
+			OnEvent(AU_CLOSE);
+			break;
+		}
+			
+		ReleaseMutex(ghMutex);
+
+
 		m_hPipe = ::CreateFile(
 			m_sPipeName.c_str(),      // pipe name
 			GENERIC_READ, // read and write access

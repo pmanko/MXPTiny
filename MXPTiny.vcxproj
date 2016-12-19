@@ -236,6 +236,7 @@
     <ClInclude Include="CPipeServer.h" />
     <ClInclude Include="EncodingPresetSetup.h" />
     <ClInclude Include="exeSetup.h" />
+    <ClInclude Include="globals.h" />
     <ClInclude Include="PipeConst.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="stdafx.h" />

@@ -11,6 +11,9 @@
 #include <string>
 #include "PipeConst.h"
 
+extern HANDLE ghMutex;
+extern bool toggle;
+
 class CPipeClient
 {
 public:

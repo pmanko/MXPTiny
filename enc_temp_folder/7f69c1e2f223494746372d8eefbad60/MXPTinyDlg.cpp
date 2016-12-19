@@ -50,8 +50,6 @@ static UINT START_MSG = ::RegisterWindowMessageA("START_MSG");
 static UINT STOP_MSG = ::RegisterWindowMessageA("STOP_MSG");
 static UINT HALT_MSG = ::RegisterWindowMessageA("HALT_MSG");
 static UINT INIT_MSG = ::RegisterWindowMessageA("INIT_MSG");
-static UINT EXIT_MSG = ::RegisterWindowMessageA("EXIT_MSG");
-
 
 // CMXPTinyDlg dialog
 

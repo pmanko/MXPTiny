@@ -157,11 +157,11 @@ UINT32 __stdcall CPipeClient::PipeThreadProc(void* pParam)
 
         case AU_IOPENDING:
         default:
-            Sleep(10);
+            Sleep(1);
             continue;
         };
 
-        Sleep(10);
+        Sleep(1);
     };
 
     return 0;

@@ -1350,8 +1350,8 @@ void CMXPTinyDlg::OnCbnSelchangeLogger()
 	//m_encoding_static.SetWindowText(str);
 
 	////m_presetIndex = idx;
-	//m_logger = logger;
-
+	// m_logger = "logger";
+	//1 == 1;
 	//// SetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), REG_DWORD, _T("presetIndex"), (BYTE *)&m_presetIndex, sizeof(m_presetIndex));
 	//SetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), REG_DWORD, _T("logger"), (BYTE *)&m_logger, sizeof(m_logger));
 }
@@ -1427,23 +1427,27 @@ UINT CMXPTinyDlg::PipeMessageHandler()
 	// Wait for the event to be signaled
 	//::WaitForSingleObject(pEvent->m_hObject, INFINITE);
 
-	m_logger.GetWindowText(log);
-
-	if (log == "My Computer")
-		log = ".";
-
-	GetComputerName(infoBuf, &bufCharCount);
-
-	pipeAddress.Format(_T("\\\\%s\\pipe\\%s%d"), log, infoBuf, anglePort);
-	std::wstring pa = pipeAddress;
-
-	CPipeClient* pClient = new CPipeClient(pa);
+	
 	std::wstring mydata;
 	std::wstring flag;
 	CString filePath;
 
 
 	while(1) {
+
+		m_logger.GetWindowText(log);
+
+		if (log == "My Computer")
+			log = ".";
+
+		GetComputerName(infoBuf, &bufCharCount);
+
+		pipeAddress.Format(_T("\\\\%s\\pipe\\%s%d"), log, infoBuf, anglePort);
+		std::wstring pa = pipeAddress;
+
+		m_encoding_static.SetWindowText(pipeAddress);
+		CPipeClient* pClient = new CPipeClient(pa);
+		
 		pClient->ConnectToServer();
 		pClient->Read();
 		pClient->GetData(mydata);

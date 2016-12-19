@@ -960,19 +960,18 @@ HRESULT CMXPTinyDlg::H264VideoInputModeChanged(void)
  */
 void CMXPTinyDlg::OnBnClickedButtonRecord()
 {
-	if(m_recording){
-		m_record_button.SetWindowTextW(_T("Record"));
-		m_recording=false;
+	if (m_streamingDevice == NULL) {
+		if(m_recording){
+			m_record_button.SetWindowTextW(_T("Record"));
+			m_recording=false;
+		}
+		else {
+			m_record_button.SetWindowTextW(_T("Recording..."));
+			m_recording=true;
+		}
+		return;
 	}
-	else {
-		m_record_button.SetWindowTextW(_T("Recording..."));
-		m_recording=true;
-	}
-	return;
-
-	if (m_streamingDevice == NULL)
-	return;
-
+	
 	if(m_recording) {
 		// Stops recording
 		if(m_fh != NULL) {

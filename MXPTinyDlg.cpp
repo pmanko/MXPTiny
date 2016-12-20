@@ -908,11 +908,11 @@ HRESULT CMXPTinyDlg::MPEG2TSPacketArrived(IBMDStreamingMPEG2TSPacket* mpeg2TSPac
 		if((m_tscount.QuadPart-m_last_tscount.QuadPart)>(1024*10)) {
 			CString str;
 			m_last_tscount.QuadPart=m_tscount.QuadPart;
-			str.Format(_T("Receiving (kB): % 26llu"), m_tscount.QuadPart>>10);
+			// str.Format(_T("Receiving (kB): % 26llu"), m_tscount.QuadPart>>10);
 			if(m_recording) {
 				LARGE_INTEGER FileSize;
 				GetFileSizeEx( m_fh, &FileSize);
-				str.Format(_T("%s    -    Recording (kB): % 6llu %s"), str, FileSize.QuadPart>>10, rec_error?_T("- ERROR WRITING !!!"):_T(""));
+				// str.Format(_T("%s    -    Recording (kB): % 6llu %s"), str, FileSize.QuadPart>>10, rec_error?_T("- ERROR WRITING !!!"):_T(""));
 			}
 			// m_encoding_static.SetWindowText(str);
 		}
@@ -1220,8 +1220,18 @@ LRESULT CMXPTinyDlg::OnHaltMsg(WPARAM wParam, LPARAM lParam)
 	CString str;
 	str.Format(_T("Disconnected from Logger"));
 
-	m_encoding_static.SetWindowText(str);
-	OnBnClickedOk();
+	// m_encoding_static.SetWindowText(str);
+
+
+	// DWORD result = WaitForSingleObject(pipeThread, INFINITE);
+
+	// if(result == WAIT_OBJECT_0) {
+		ShouldExit = false;
+		CWinThread* myThread = AfxBeginThread(PipeMessageHandlerThreadProc, this);
+
+		pipeThread = myThread->m_hThread;
+	//} 
+
 	return 0;
 }
 
@@ -1420,35 +1430,23 @@ void CMXPTinyDlg::OnCbnSelchangeLogger()
 	// TerminateThread(pipeThread, 0);
 	ShouldExit = true;
 	CancelSynchronousIo(pipeThread);
-	DWORD result = WaitForSingleObject(pipeThread, 5000);
+	DWORD result = WaitForSingleObject(pipeThread, INFINITE);
 
-	while(true)
+
+	if(result == WAIT_OBJECT_0) {
+		ShouldExit = false;
+		CWinThread* myThread = AfxBeginThread(PipeMessageHandlerThreadProc, this);
+
+		pipeThread = myThread->m_hThread;
+	} 
+	else if (result == WAIT_ABANDONED)
 	{
-		if(result == WAIT_OBJECT_0) {
-			ShouldExit = false;
-			CWinThread* myThread = AfxBeginThread(PipeMessageHandlerThreadProc, this);
-
-			pipeThread = myThread->m_hThread;
-			break;
-		} 
-		else if (result == WAIT_ABANDONED)
-		{
-			tmp = 0;
-			break;
-		}
-		else if (result == WAIT_TIMEOUT)
-		{
-			tmp = 1;
-
-			TerminateThread(pipeThread, 0);
-			DWORD result = WaitForSingleObject(pipeThread, 5000);
-		}
-		else if (result == WAIT_FAILED)
-		{
-			DWORD dw = GetLastError(); 
-			tmp = 3;
-			break;
-		}
+		tmp = 0;
+	}
+	else if (result == WAIT_FAILED)
+	{
+		DWORD dw = GetLastError(); 
+		tmp = 3;
 	}
 }
 
@@ -1542,11 +1540,19 @@ UINT CMXPTinyDlg::PipeMessageHandler()
 	CString filePath;
 
 	//pClient->ConnectToServer();
+	//pClient->Read();
+	//pClient->GetData(mydata);
+
+	//if(mydata != _T("INIT"))
+	//	mydata == _T("");
+	//	// m_encoding_static.SetWindowText(_T("Failed to INITIALIZE!"));
+
 	//pClient->Close();
-	//pClient->ConnectToServer();
+	pClient->ConnectToServer();
+	//std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
 	while(!ShouldExit) {
-		pClient->ConnectToServer();
+		// pClient->ConnectToServer();
 		pClient->Read();
 		pClient->GetData(mydata);
 		pClient->Close();
@@ -1560,23 +1566,24 @@ UINT CMXPTinyDlg::PipeMessageHandler()
 			
 				filePath = mydata.c_str();
 				filePath = filePath.Mid(1);
-				SendMessage(START_MSG, (WPARAM) TRUE, (LPARAM) &filePath);
+				PostMessage(START_MSG, (WPARAM) TRUE, (LPARAM) &filePath);
 
 			}
 			else if (mydata == _T("stop"))
 			{
-				SendMessage(STOP_MSG, (WPARAM) TRUE);
+				PostMessage(STOP_MSG, (WPARAM) TRUE);
 			} 
 			else if (mydata == _T("halt"))
 			{
-				SendMessage(HALT_MSG, (WPARAM) TRUE);
+				PostMessage(HALT_MSG, (WPARAM) TRUE);
+				break;
 			}
 			else if (mydata == _T("INIT")) 
 			{
-				SendMessage(INIT_MSG, (WPARAM) TRUE);
+				// SendMessage(INIT_MSG, (WPARAM) TRUE);
 			}
 		}
-		// pClient->ConnectToServer();
+		pClient->ConnectToServer();
 	}
 
 	mydata;

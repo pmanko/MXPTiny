@@ -1541,7 +1541,7 @@ UINT CMXPTinyDlg::PipeMessageHandler()
 	std::wstring flag;
 	CString filePath;
 
-	//pClient->Read();
+	//pClient->ConnectToServer();
 	//pClient->Close();
 	//pClient->ConnectToServer();
 
@@ -1576,6 +1576,7 @@ UINT CMXPTinyDlg::PipeMessageHandler()
 				SendMessage(INIT_MSG, (WPARAM) TRUE);
 			}
 		}
+		// pClient->ConnectToServer();
 	}
 
 	mydata;

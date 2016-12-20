@@ -108,6 +108,7 @@ CMXPTinyDlg::CMXPTinyDlg(CWnd* pParent /*=NULL*/)
 	m_timestampSuffix = false;
 	m_syncToHost = false;
 	m_failCount = 0;
+	m_loggerIndex = 0;
 
 	LPWSTR appFolder;
 	CString saveFolder;
@@ -123,8 +124,6 @@ CMXPTinyDlg::CMXPTinyDlg(CWnd* pParent /*=NULL*/)
 	if(!GetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), _T("bitrate"), (BYTE *)&m_bitrate, sizeof(m_bitrate))) 
 		m_bitrate=20000;
 
-	/*if (!GetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), _T("loggerList"), (BYTE *)&m_loggerList, sizeof(m_loggerList)))
-		m_loggerList.Add(_T("My Computer"));*/
 
 	// Get location of AppData folder
 	SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, NULL, &appFolder);
@@ -160,6 +159,9 @@ CMXPTinyDlg::CMXPTinyDlg(CWnd* pParent /*=NULL*/)
 	{
 		// Failed to create directory.
 	}
+
+	if (!GetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), _T("loggerIndex"), (BYTE *)&m_loggerIndex, sizeof(m_loggerIndex)))
+		m_loggerIndex = 0;
 
 	GetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), _T("autorec"), (BYTE *)&m_autorec, sizeof(m_autorec));
 	
@@ -572,7 +574,7 @@ void CMXPTinyDlg::UpdateUIForLoggerChange() {
 		//m_logger.SetItemDataPtr(newIndex, &currString);
 	}
 
-	m_logger.SetCurSel(0);
+	m_logger.SetCurSel(m_loggerIndex);
 
 }
 
@@ -1422,6 +1424,12 @@ void CMXPTinyDlg::OnCbnSelchangeLogger()
 
 	//// SetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), REG_DWORD, _T("presetIndex"), (BYTE *)&m_presetIndex, sizeof(m_presetIndex));
 	//SetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), REG_DWORD, _T("logger"), (BYTE *)&m_logger, sizeof(m_logger));
+
+	auto idx(m_logger.GetCurSel());
+	m_loggerIndex = idx;
+	SetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), REG_DWORD, _T("loggerIndex"), (BYTE *)&m_loggerIndex, sizeof(m_loggerIndex));
+
+
 
 	if(m_recording)
 		OnBnClickedButtonRecord();

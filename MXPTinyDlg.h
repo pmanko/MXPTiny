@@ -56,6 +56,7 @@ protected:
 	DWORD							m_presetIndex;
 	int								anglePort;
 	CStringArray					m_loggerList;
+	DWORD							m_loggerIndex;
 	CSliderCtrl m_bitrate_slider;
 	CStatic m_bitrate_static;
 	CString m_default_exe;

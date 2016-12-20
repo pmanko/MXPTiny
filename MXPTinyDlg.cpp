@@ -398,6 +398,8 @@ void CMXPTinyDlg::OnBnClickedOk()
 // Should this be done automatically when process starts?
 void CMXPTinyDlg::StartPreview()
 {
+	CString streamName;
+
 	if (m_playing)
 		return;
 	int i=m_videoEncodingCombo.GetCurSel();
@@ -432,7 +434,8 @@ void CMXPTinyDlg::StartPreview()
 	m_filename.ReleaseBuffer();
 
 	// Pipe Creation - RELEVANT!
-	m_pipe=CreateNamedPipe(_T("\\\\.\\pipe\\DeckLink.ts"), PIPE_ACCESS_OUTBOUND, PIPE_TYPE_BYTE | PIPE_NOWAIT | PIPE_ACCEPT_REMOTE_CLIENTS, 100, 188*1000, 188*1000, 0, NULL);
+	streamName.Format(_T("\\\\.\\pipe\\DeckLink_%d.ts"), anglePort);
+	m_pipe=CreateNamedPipe(streamName, PIPE_ACCESS_OUTBOUND, PIPE_TYPE_BYTE | PIPE_NOWAIT | PIPE_ACCEPT_REMOTE_CLIENTS, 100, 188*1000, 188*1000, 0, NULL);
 
 	m_playing = true;	
 	m_last_tscount.QuadPart = 0;

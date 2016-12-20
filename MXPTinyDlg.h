@@ -60,6 +60,7 @@ protected:
 	CSliderCtrl m_bitrate_slider;
 	CStatic m_bitrate_static;
 	CString m_default_exe;
+	CString m_streamingPipeAddress;
 
 	class dev {
 		public:

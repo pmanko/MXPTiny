@@ -119,7 +119,9 @@ CMXPTinyDlg::CMXPTinyDlg(CWnd* pParent /*=NULL*/)
 	TCHAR pf[MAX_PATH];
 
 	// Set angle port number
-	anglePort = 4444; //_tstoi(theApp.m_lpCmdLine);
+	anglePort = _tstoi(theApp.m_lpCmdLine);
+	if (anglePort == 0)
+		anglePort = 4444;
 
 	if(!GetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), _T("bitrate"), (BYTE *)&m_bitrate, sizeof(m_bitrate))) 
 		m_bitrate=20000;
@@ -179,18 +181,20 @@ CMXPTinyDlg::CMXPTinyDlg(CWnd* pParent /*=NULL*/)
 
 	m_filename.Format(_T("C:\\vidwork\\tempa.ts"));
 
+	m_streamingPipeAddress.Format(_T("DeckLink_%d.ts"), anglePort);
+
 	if(true) // !GetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), _T("previewcmd"), (BYTE *)m_vlcexe.GetBuffer(MAX_PATH), MAX_PATH))
 	{
 		m_vlcexe.ReleaseBuffer();
 		SHGetSpecialFolderPath( 0, pf, CSIDL_PROGRAM_FILESX86, FALSE ); 
-		m_vlcexe.Format(_T("%s\\VideoLAN\\VLC\\vlc.exe --no-fullscreen --sout-transcode-maxwidth=1200 stream://\\\\\\.\\pipe\\DeckLink.ts"), pf);
+		m_vlcexe.Format(_T("%s\\VideoLAN\\VLC\\vlc.exe --no-fullscreen --sout-transcode-maxwidth=1200 stream://\\\\\\.\\pipe\\%s"), pf, m_streamingPipeAddress);
 	} else 
 		m_vlcexe.ReleaseBuffer();
 
 	SHGetSpecialFolderPath( 0, pf, CSIDL_PROGRAM_FILESX86, FALSE ); 
-	m_default_exe.Format(_T("%s\\VideoLAN\\VLC\\vlc.exe --no-fullscreen --sout-transcode-maxwidth=1200 stream://\\\\\\.\\pipe\\DeckLink.ts"), pf);
+	m_default_exe.Format(_T("%s\\VideoLAN\\VLC\\vlc.exe --no-fullscreen --sout-transcode-maxwidth=1200 stream://\\\\\\.\\pipe\\%s"), pf, m_streamingPipeAddress);
 
-	SetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\tings"), REG_DWORD, _T("bitrate"), (BYTE *)&m_bitrate, sizeof(m_bitrate));
+	SetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), REG_DWORD, _T("bitrate"), (BYTE *)&m_bitrate, sizeof(m_bitrate));
 	SetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), REG_MULTI_SZ, _T("loggerList"), (BYTE *)&m_loggerList, sizeof(m_loggerList));
 
 	SetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), REG_SZ, _T("folder"), (BYTE *)m_filename.GetBuffer(MAX_PATH), m_filename.GetLength()*2);
@@ -434,7 +438,7 @@ void CMXPTinyDlg::StartPreview()
 	m_filename.ReleaseBuffer();
 
 	// Pipe Creation - RELEVANT!
-	streamName.Format(_T("\\\\.\\pipe\\DeckLink_%d.ts"), anglePort);
+	streamName.Format(_T("\\\\.\\pipe\\%s"), m_streamingPipeAddress);
 	m_pipe=CreateNamedPipe(streamName, PIPE_ACCESS_OUTBOUND, PIPE_TYPE_BYTE | PIPE_NOWAIT | PIPE_ACCEPT_REMOTE_CLIENTS, 100, 188*1000, 188*1000, 0, NULL);
 
 	m_playing = true;	
@@ -904,7 +908,7 @@ HRESULT CMXPTinyDlg::MPEG2TSPacketArrived(IBMDStreamingMPEG2TSPacket* mpeg2TSPac
 		if(!WriteFile(m_pipe, buf, len, &dwBytesWritten, NULL)) {
 			if(GetLastError() == ERROR_NO_DATA ) {
 				CloseHandle(m_pipe);
-				m_pipe=CreateNamedPipe(_T("\\\\.\\pipe\\DeckLink.ts"), PIPE_ACCESS_OUTBOUND, PIPE_TYPE_BYTE | PIPE_NOWAIT | PIPE_ACCEPT_REMOTE_CLIENTS, 100, 188*1000, 188*1000, 0, NULL);
+				m_pipe=CreateNamedPipe(m_streamingPipeAddress, PIPE_ACCESS_OUTBOUND, PIPE_TYPE_BYTE | PIPE_NOWAIT | PIPE_ACCEPT_REMOTE_CLIENTS, 100, 188*1000, 188*1000, 0, NULL);
 			}
 		}
 		if(m_fh != NULL && !WriteFile(m_fh, buf, len, &dwBytesWritten, NULL)) {
@@ -1411,6 +1415,8 @@ UINT CMXPTinyDlg::MonitorHost()
 void CMXPTinyDlg::OnCbnSelchangeLogger()
 {
 	DWORD tmp;
+	TCHAR pf[MAX_PATH];
+
 	//CString str;
 	//auto idx(m_videoEncodingCombo.GetCurSel());
 	//IBMDStreamingVideoEncodingMode* em = (IBMDStreamingVideoEncodingMode*)m_videoEncodingCombo.GetItemDataPtr(idx);
@@ -1431,6 +1437,14 @@ void CMXPTinyDlg::OnCbnSelchangeLogger()
 	auto idx(m_logger.GetCurSel());
 	m_loggerIndex = idx;
 	SetKeyData(HKEY_CURRENT_USER, _T("Software\\BayCom\\MXPTiny\\Settings"), REG_DWORD, _T("loggerIndex"), (BYTE *)&m_loggerIndex, sizeof(m_loggerIndex));
+
+
+	m_vlcexe.ReleaseBuffer();
+	m_default_exe.ReleaseBuffer();
+
+	SHGetSpecialFolderPath(0, pf, CSIDL_PROGRAM_FILESX86, FALSE);
+	m_vlcexe.Format(_T("%s\\VideoLAN\\VLC\\vlc.exe --no-fullscreen --sout-transcode-maxwidth=1200 stream://\\\\\\.\\pipe\\%s"), pf, m_streamingPipeAddress);
+	m_default_exe.Format(_T("%s\\VideoLAN\\VLC\\vlc.exe --no-fullscreen --sout-transcode-maxwidth=1200 stream://\\\\\\.\\pipe\\%s"), pf, m_streamingPipeAddress);
 
 
 

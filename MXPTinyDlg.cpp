@@ -1545,7 +1545,7 @@ UINT CMXPTinyDlg::PipeMessageHandler()
 	m_encoding_static.SetWindowText(pipeAddress);
 	std::wstring pa = pipeAddress;
 
-	CPipeClient* pClient = new CPipeClient(pa);
+	CPipeClient* pClient;
 	std::wstring mydata;
 	std::wstring flag;
 	CString filePath;
@@ -1559,14 +1559,18 @@ UINT CMXPTinyDlg::PipeMessageHandler()
 	//	// m_encoding_static.SetWindowText(_T("Failed to INITIALIZE!"));
 
 	//pClient->Close();
+	pClient = new CPipeClient(pa);
 	pClient->ConnectToServer();
 	//std::this_thread::sleep_for(std::chrono::milliseconds(50));
-
+	
 	while(!ShouldExit) {
+
 		// pClient->ConnectToServer();
 		pClient->Read();
 		pClient->GetData(mydata);
 		pClient->Close();
+		delete pClient;
+		pClient = NULL;
 
 		flag = mydata.substr(0,1);
 
@@ -1594,6 +1598,7 @@ UINT CMXPTinyDlg::PipeMessageHandler()
 				// SendMessage(INIT_MSG, (WPARAM) TRUE);
 			}
 		}
+		pClient = new CPipeClient(pa);
 		pClient->ConnectToServer();
 	}
 

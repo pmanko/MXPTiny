@@ -18,6 +18,10 @@
 //using namespace System;
 
 
+#define _CRTDBG_MAP_ALLOC  
+#include <stdlib.h>  
+#include <crtdbg.h>  
+	
 #include "stdafx.h"
 #include "globals.h"
 #include "MXPTiny.h"
@@ -55,6 +59,12 @@ static UINT INIT_MSG = ::RegisterWindowMessageA("INIT_MSG");
 // CMXPTinyDlg dialog
 volatile bool ShouldExit;
 
+
+class MyException : public std::exception
+{
+    public:
+          MyException()  { }
+};
 
 // Gets registry data
 int GetKeyData(HKEY hRootKey, CString subKey, CString value, LPBYTE data, DWORD cbData)
@@ -117,6 +127,9 @@ CMXPTinyDlg::CMXPTinyDlg(CWnd* pParent /*=NULL*/)
 	CString defaultLogger = _T("My Computer");
 
 	TCHAR pf[MAX_PATH];
+
+	_CrtSetDbgFlag ( _CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF );  
+
 
 	// Set angle port number
 	anglePort = _tstoi(theApp.m_lpCmdLine);
@@ -1463,14 +1476,11 @@ void CMXPTinyDlg::OnCbnSelchangeLogger()
 		CWinThread* myThread = AfxBeginThread(PipeMessageHandlerThreadProc, this);
 
 		pipeThread = myThread->m_hThread;
-	} 
-	else if (result == WAIT_ABANDONED)
-	{
-		tmp = 0;
 	}
-	else if (result == WAIT_FAILED)
+	else 
 	{
 		DWORD dw = GetLastError(); 
+		throw MyException();
 		tmp = 3;
 	}
 }
@@ -1577,14 +1587,12 @@ UINT CMXPTinyDlg::PipeMessageHandler()
 	pClient->ConnectToServer();
 	//std::this_thread::sleep_for(std::chrono::milliseconds(50));
 	
-	while(!ShouldExit) {
+	while(1) {
 
-		// pClient->ConnectToServer();
 		pClient->Read();
 		pClient->GetData(mydata);
 		pClient->Close();
-		delete pClient;
-		pClient = NULL;
+
 
 		flag = mydata.substr(0,1);
 
@@ -1603,6 +1611,7 @@ UINT CMXPTinyDlg::PipeMessageHandler()
 				PostMessage(STOP_MSG, (WPARAM) TRUE);
 			} 
 			else if (mydata == _T("halt"))
+
 			{
 				PostMessage(HALT_MSG, (WPARAM) TRUE);
 				break;
@@ -1611,10 +1620,16 @@ UINT CMXPTinyDlg::PipeMessageHandler()
 			{
 				// SendMessage(INIT_MSG, (WPARAM) TRUE);
 			}
+		} else {
+			break;
 		}
-		pClient = new CPipeClient(pa);
+
 		pClient->ConnectToServer();
 	}
+
+	
+	/*delete pClient;
+	pClient = NULL;*/
 
 	mydata;
 

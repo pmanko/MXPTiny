@@ -77,16 +77,20 @@ BOOL CMXPTinyApp::InitInstance()
 	CMXPTinyDlg dlg;
 	m_pMainWnd = &dlg;
 	INT_PTR nResponse = dlg.DoModal();
+	
 	if (nResponse == IDOK)
 	{
+		nResponse = 2;
 		// TODO: Place code here to handle when the dialog is
 		//  dismissed with OK
 	}
 	else if (nResponse == IDCANCEL)
 	{
+		nResponse == 2;
 		// TODO: Place code here to handle when the dialog is
 		//  dismissed with Cancel
 	}
+	
 
 	// Since the dialog has been closed, return FALSE so that we exit the
 	//  application, rather than start the application's message pump.

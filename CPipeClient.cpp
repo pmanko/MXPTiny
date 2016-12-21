@@ -103,10 +103,17 @@ UINT32 __stdcall CPipeClient::PipeThreadProc(void* pParam)
         return 1L;
 
     pPipe->OnEvent(AU_THRD_RUN);
-    while(!ShouldExit)
+    while(1)
     {
         int nEventID = pPipe->GetEvent();
-        if(nEventID == AU_ERROR || nEventID == AU_TERMINATE)
+
+		if(ShouldExit) {
+            pPipe->Close();
+			::_endthreadex(0);
+			break;
+		}
+		
+		if(nEventID == AU_ERROR || nEventID == AU_TERMINATE)
         {
             // Close pipe comm
             pPipe->Close();
@@ -123,11 +130,11 @@ UINT32 __stdcall CPipeClient::PipeThreadProc(void* pParam)
 
         case AU_IOREAD:
             {
-                if(pPipe->Read())
+                /*if(pPipe->Read())
                     pPipe->OnEvent(AU_READ);
                 else
                     pPipe->OnEvent(AU_ERROR);
-
+*/
                 break;
             }
 
@@ -163,7 +170,7 @@ UINT32 __stdcall CPipeClient::PipeThreadProc(void* pParam)
         };
 
         // Sleep(10);
-    };
+    };	           
 
     return 0;
 }
@@ -196,7 +203,9 @@ void CPipeClient::ConnectToServer()
 		}
 	}
 	if(ShouldExit)
+	{
 		OnEvent(AU_ERROR);
+	}
 
 }
 
@@ -257,8 +266,15 @@ void CPipeClient::OnEvent(int nEventID)
 
 void CPipeClient::Close()
 {
-    ::CloseHandle(m_hPipe);
-    m_hPipe = NULL;
+
+    try {
+		::CloseHandle(m_hPipe);
+		m_hPipe = NULL;
+	}
+	catch(std::exception) {
+	
+	}
+
 }
 
 bool CPipeClient::Read()
